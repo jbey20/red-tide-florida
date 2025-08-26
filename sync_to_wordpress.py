@@ -47,8 +47,9 @@ class WordPressSyncer:
             raise
     
     def _test_wordpress_auth(self):
-        """Test WordPress API authentication"""
+        """Test WordPress API authentication and check available endpoints"""
         try:
+            # Test basic auth
             test_url = f"{self.wp_site_url}/wp-json/wp/v2/users/me"
             response = requests.get(test_url, auth=self.auth, timeout=10)
             
@@ -58,6 +59,36 @@ class WordPressSyncer:
             else:
                 print(f"❌ WordPress auth failed: {response.status_code} - {response.text}")
                 raise Exception("WordPress authentication failed")
+            
+            # Test REST API endpoints for our post types
+            print("\n🔍 Checking REST API endpoints...")
+            endpoints_to_test = ['beaches', 'cities', 'regions']
+            
+            for endpoint in endpoints_to_test:
+                test_endpoint_url = f"{self.wp_site_url}/wp-json/wp/v2/{endpoint}"
+                endpoint_response = requests.get(test_endpoint_url, auth=self.auth, timeout=10)
+                
+                if endpoint_response.status_code == 200:
+                    print(f"   ✅ /{endpoint} endpoint available")
+                elif endpoint_response.status_code == 404:
+                    print(f"   ❌ /{endpoint} endpoint not found (404)")
+                else:
+                    print(f"   ⚠️  /{endpoint} endpoint returned {endpoint_response.status_code}")
+            
+            # List all available post types
+            print("\n📋 Available post types in REST API:")
+            try:
+                types_url = f"{self.wp_site_url}/wp-json/wp/v2/types"
+                types_response = requests.get(types_url, auth=self.auth, timeout=10)
+                if types_response.status_code == 200:
+                    types_data = types_response.json()
+                    for type_key, type_info in types_data.items():
+                        rest_base = type_info.get('rest_base', 'N/A')
+                        print(f"   - {type_key}: /wp-json/wp/v2/{rest_base}")
+                else:
+                    print("   Could not fetch post types list")
+            except Exception as e:
+                print(f"   Error fetching post types: {e}")
                 
         except Exception as e:
             print(f"❌ WordPress connection test failed: {e}")
@@ -100,8 +131,17 @@ class WordPressSyncer:
     
     def find_existing_post(self, slug, post_type):
         """Find existing WordPress post by slug"""
+        # Map post types to REST endpoints
+        rest_endpoints = {
+            'beach': 'beaches',
+            'city': 'cities', 
+            'region': 'regions'
+        }
+        
+        rest_base = rest_endpoints.get(post_type, post_type)
+        
         try:
-            search_url = f"{self.wp_site_url}/wp-json/wp/v2/{post_type}"
+            search_url = f"{self.wp_site_url}/wp-json/wp/v2/{rest_base}"
             params = {'slug': slug}
             
             response = requests.get(search_url, params=params, auth=self.auth, timeout=10)
@@ -119,6 +159,14 @@ class WordPressSyncer:
     
     def create_or_update_post(self, data, post_type):
         """Create or update a WordPress post"""
+        # Map post types to REST endpoints
+        rest_endpoints = {
+            'beach': 'beaches',
+            'city': 'cities',
+            'region': 'regions'
+        }
+        
+        rest_base = rest_endpoints.get(post_type, post_type)
         location_name = data['location_name']
         slug = data['slug']
         
@@ -128,12 +176,42 @@ class WordPressSyncer:
         if existing_post:
             # Update existing post
             post_id = existing_post['id']
-            url = f"{self.wp_site_url}/wp-json/wp/v2/{post_type}/{post_id}"
+            url = f"{self.wp_site_url}/wp-json/wp/v2/{rest_base}/{post_id}"
             method = 'POST'  # WordPress uses POST for updates
             action = "Updating"
         else:
             # Create new post
-            url = f"{self.wp_site_url}/wp-json/wp/v2/{post_type}"
+            url = f"{self.wp_site_url}/wp-json/wp/v2/{rest_base}"
+            method = 'POST'
+            action = "Creating"
+        
+        print(f"   {action} {post_type}: {location_name} (endpoint: {rest_base})")
+        
+        # Prepare post data
+        post_data = self._prepare_post_data(data, post_type)
+        
+        try:
+            response = requests.request(
+                method, url,
+                json=post_data,
+                auth=self.auth,
+                headers={'Content-Type': 'application/json'},
+                timeout=15
+            )
+            
+            if response.status_code in [200, 201]:
+                result = response.json()
+                print(f"   ✅ Success: {location_name} (ID: {result['id']})")
+                return result['id']
+            else:
+                print(f"   ❌ Failed: {location_name} - {response.status_code}")
+                print(f"      Error: {response.text[:200]}")
+                print(f"      URL attempted: {url}")
+                return None
+                
+        except Exception as e:
+            print(f"   ❌ Error creating/updating {location_name}: {e}")
+            return Nonepost_type}"
             method = 'POST'
             action = "Creating"
         
