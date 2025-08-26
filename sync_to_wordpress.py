@@ -316,35 +316,6 @@ class WordPressSyncer:
                 
         except Exception as e:
             print(f"   ❌ Error creating/updating {location_name}: {e}")
-            return Nonepost_type}"
-            method = 'POST'
-            action = "Creating"
-        
-        print(f"   {action} {post_type}: {location_name}")
-        
-        # Prepare post data
-        post_data = self._prepare_post_data(data, post_type)
-        
-        try:
-            response = requests.request(
-                method, url,
-                json=post_data,
-                auth=self.auth,
-                headers={'Content-Type': 'application/json'},
-                timeout=15
-            )
-            
-            if response.status_code in [200, 201]:
-                result = response.json()
-                print(f"   ✅ Success: {location_name} (ID: {result['id']})")
-                return result['id']
-            else:
-                print(f"   ❌ Failed: {location_name} - {response.status_code}")
-                print(f"      Error: {response.text[:200]}")
-                return None
-                
-        except Exception as e:
-            print(f"   ❌ Error creating/updating {location_name}: {e}")
             return None
     
     def _prepare_post_data(self, data, post_type):
