@@ -340,7 +340,7 @@ class WordPressSyncer:
             'status_color': self.get_status_color(current_status),
             'last_updated': datetime.now(pytz.timezone('US/Eastern')).strftime('%Y-%m-%d %H:%M:%S'),
             'url_slug': data['slug'],
-            'region': data.get('region', ''),
+            'region': data.get('region', '') or None,
             'state': 'FL',
             'featured_location': False
         }
@@ -351,13 +351,13 @@ class WordPressSyncer:
             beach_location_data = self._get_beach_location_data(location_name)
             
             acf_data.update({
-                'city': data.get('city', ''),
-                'coordinates': beach_location_data.get('coordinates', ''),
-                'full_address': beach_location_data.get('address', ''),
-                'zip_code': beach_location_data.get('zip', ''),
+                'city': data.get('city', '') or None,
+                'coordinates': beach_location_data.get('coordinates', '') or None,
+                'full_address': beach_location_data.get('address', '') or None,
+                'zip_code': beach_location_data.get('zip', '') or None,
                 'peak_count': int(data.get('peak_count', 0)),
                 'confidence_score': int(data.get('confidence_score', 0)),
-                'sample_date': data.get('sample_date', '')
+                'sample_date': data.get('sample_date', '') or None
             })
             
         elif post_type in ['city', 'region']:
@@ -365,7 +365,7 @@ class WordPressSyncer:
                 'peak_count': int(data.get('peak_count', 0)),
                 'avg_count': int(data.get('avg_count', 0)),
                 'confidence_score': int(data.get('confidence_score', 0)),
-                'sample_date': data.get('sample_date', ''),
+                'sample_date': data.get('sample_date', '') or None,
                 'beach_count': int(data.get('beach_count', 0)),
                 'beaches_safe': int(data.get('beaches_safe', 0)),
                 'beaches_caution': int(data.get('beaches_caution', 0)),
@@ -405,9 +405,9 @@ class WordPressSyncer:
             for record in records:
                 if record.get('beach', '') == beach_name:
                     return {
-                        'coordinates': f"{record.get('lattitude', '')}, {record.get('longitude', '')}".strip(', '),
-                        'address': record.get('address', ''),
-                        'zip': record.get('zip', '')
+                        'coordinates': f"{record.get('lattitude', '')}, {record.get('longitude', '')}".strip(', ') or None,
+                        'address': record.get('address', '') or None,
+                        'zip': str(record.get('zip', '')) if record.get('zip') else None
                     }
             
             return {}
