@@ -1,0 +1,67 @@
+name: Red Tide Data Update
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'  # Every 6 hours
+  workflow_dispatch:  # Manual trigger
+    inputs:
+      test_mode:
+        description: "Run in test mode (limited operations)"
+        type: boolean
+        required: false
+        default: false
+      skip_wordpress:
+        description: "Skip WordPress sync (Google Sheets only)"
+        type: boolean
+        required: false
+        default: false
+
+jobs:
+  update-red-tide-data:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Fetch HAB data and update Google Sheets
+      env:
+        GOOGLE_SERVICE_ACCOUNT: ${{ secrets.GOOGLE_SERVICE_ACCOUNT }}
+        GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
+        TEST_MODE: ${{ inputs.test_mode }}
+      run: |
+        echo "🌊 Starting HAB data fetch..."
+        python fetch_hab_data.py
+
+    - name: Sync to WordPress
+      if: ${{ !inputs.skip_wordpress }}
+      env:
+        WORDPRESS_SITE_URL: ${{ secrets.WORDPRESS_SITE_URL }}
+        WORDPRESS_USERNAME: ${{ secrets.WORDPRESS_USERNAME }}
+        WORDPRESS_APP_PASSWORD: ${{ secrets.WORDPRESS_APP_PASSWORD }}
+        GOOGLE_SERVICE_ACCOUNT: ${{ secrets.GOOGLE_SERVICE_ACCOUNT }}
+        GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
+        TEST_MODE: ${{ inputs.test_mode }}
+      run: |
+        echo "🔄 Starting WordPress sync..."
+        python sync_to_wordpress.py
+
+    - name: Notify on failure
+      if: failure()
+      run: |
+        echo "❌ Red tide update failed!"
+        echo "Check the logs above for error details."
+        # Add webhook notification here if desired
