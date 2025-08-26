@@ -20,11 +20,23 @@ class WordPressSyncer:
         self.wp_username = os.environ['WORDPRESS_USERNAME']
         self.wp_password = os.environ['WORDPRESS_APP_PASSWORD']
         
+        # Test mode configuration
+        self.test_mode = os.environ.get('TEST_MODE', 'false').lower() == 'true'
+        self.test_limit = int(os.environ.get('TEST_LIMIT', '2'))
+        self.wordpress_test_only = os.environ.get('WORDPRESS_TEST_ONLY', 'false').lower() == 'true'
+        
+        if self.test_mode:
+            print(f"🧪 Running in TEST MODE (limited to {self.test_limit} posts per type)")
+        
+        if self.wordpress_test_only:
+            print(f"🔧 Running WordPress-only test (using mock data)")
+        
         # Authentication
         self.auth = (self.wp_username, self.wp_password)
         
-        # Google Sheets Setup
-        self._init_google_sheets()
+        # Google Sheets Setup (skip if WordPress-only test)
+        if not self.wordpress_test_only:
+            self._init_google_sheets()
         
         # Test WordPress connection
         self._test_wordpress_auth()
@@ -95,7 +107,10 @@ class WordPressSyncer:
             raise
     
     def load_sheet_data(self):
-        """Load processed data from beach_status sheet"""
+        """Load processed data from beach_status sheet or generate mock data"""
+        if self.wordpress_test_only:
+            return self._generate_mock_data()
+            
         try:
             worksheet = self.sheet.worksheet('beach_status')
             records = worksheet.get_all_records()
@@ -108,6 +123,12 @@ class WordPressSyncer:
                 if location_type in data_by_type:
                     data_by_type[location_type].append(record)
             
+            # Apply test mode limits
+            if self.test_mode:
+                for location_type in data_by_type:
+                    data_by_type[location_type] = data_by_type[location_type][:self.test_limit]
+                    print(f"🧪 Test mode: Limited {location_type} to {len(data_by_type[location_type])} records")
+            
             print(f"✅ Loaded from Google Sheets:")
             print(f"   - {len(data_by_type['beach'])} beaches")
             print(f"   - {len(data_by_type['city'])} cities")
@@ -118,6 +139,83 @@ class WordPressSyncer:
         except Exception as e:
             print(f"❌ Failed to load sheet data: {e}")
             raise
+    
+    def _generate_mock_data(self):
+        """Generate mock data for WordPress-only testing"""
+        print("🔧 Generating mock data for WordPress testing...")
+        
+        mock_data = {
+            'beach': [
+                {
+                    'location_name': 'Test Beach One',
+                    'location_type': 'beach',
+                    'current_status': 'safe',
+                    'peak_count': 2500,
+                    'confidence_score': 85,
+                    'sample_date': '2025-01-15',
+                    'region': 'Test Region',
+                    'city': 'Test City',
+                    'slug': 'test-beach-one'
+                },
+                {
+                    'location_name': 'Test Beach Two',
+                    'location_type': 'beach',
+                    'current_status': 'caution',
+                    'peak_count': 15000,
+                    'confidence_score': 78,
+                    'sample_date': '2025-01-14',
+                    'region': 'Test Region',
+                    'city': 'Test City',
+                    'slug': 'test-beach-two'
+                }
+            ],
+            'city': [
+                {
+                    'location_name': 'Test City',
+                    'location_type': 'city',
+                    'current_status': 'caution',
+                    'peak_count': 15000,
+                    'avg_count': 8750,
+                    'confidence_score': 82,
+                    'sample_date': '2025-01-15',
+                    'beach_count': 2,
+                    'beaches_safe': 1,
+                    'beaches_caution': 1,
+                    'beaches_avoid': 0,
+                    'region': 'Test Region',
+                    'slug': 'test-city'
+                }
+            ],
+            'region': [
+                {
+                    'location_name': 'Test Region',
+                    'location_type': 'region',
+                    'current_status': 'caution',
+                    'peak_count': 15000,
+                    'avg_count': 8750,
+                    'confidence_score': 82,
+                    'sample_date': '2025-01-15',
+                    'beach_count': 2,
+                    'city_count': 1,
+                    'beaches_safe': 1,
+                    'beaches_caution': 1,
+                    'beaches_avoid': 0,
+                    'slug': 'test-region'
+                }
+            ]
+        }
+        
+        # Apply test mode limits to mock data too
+        if self.test_mode:
+            for location_type in mock_data:
+                mock_data[location_type] = mock_data[location_type][:self.test_limit]
+        
+        print(f"🔧 Generated mock data:")
+        print(f"   - {len(mock_data['beach'])} test beaches")
+        print(f"   - {len(mock_data['city'])} test cities")  
+        print(f"   - {len(mock_data['region'])} test regions")
+        
+        return mock_data
     
     def get_status_color(self, status):
         """Get color code for status"""
@@ -170,6 +268,11 @@ class WordPressSyncer:
         location_name = data['location_name']
         slug = data['slug']
         
+        # In test mode, add prefix to avoid conflicts
+        if self.test_mode or self.wordpress_test_only:
+            slug = f"test-{slug}"
+            print(f"   🧪 Test mode: Using slug '{slug}' to avoid conflicts")
+        
         # Check for existing post
         existing_post = self.find_existing_post(slug, post_type)
         
@@ -187,8 +290,10 @@ class WordPressSyncer:
         
         print(f"   {action} {post_type}: {location_name} (endpoint: {rest_base})")
         
-        # Prepare post data
-        post_data = self._prepare_post_data(data, post_type)
+        # Prepare post data (update slug in data for title generation)
+        data_copy = data.copy()
+        data_copy['slug'] = slug
+        post_data = self._prepare_post_data(data_copy, post_type)
         
         try:
             response = requests.request(
@@ -314,6 +419,14 @@ class WordPressSyncer:
     
     def _get_beach_location_data(self, beach_name):
         """Get additional beach data from locations sheet"""
+        if self.wordpress_test_only:
+            # Return mock location data for testing
+            return {
+                'coordinates': '27.265862, -82.552521',
+                'address': '123 Test Beach Road, Test City, FL 12345',
+                'zip': '12345'
+            }
+            
         try:
             worksheet = self.sheet.worksheet('locations')
             records = worksheet.get_all_records()

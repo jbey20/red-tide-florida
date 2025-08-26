@@ -15,6 +15,16 @@ on:
         type: boolean
         required: false
         default: false
+      wordpress_test_only:
+        description: "Test WordPress only (skip Google Sheets, use mock data)"
+        type: boolean
+        required: false
+        default: false
+      test_limit:
+        description: "Number of items to process in test mode"
+        type: string
+        required: false
+        default: "3"
 
 jobs:
   update-red-tide-data:
@@ -38,10 +48,12 @@ jobs:
         pip install -r requirements.txt
 
     - name: Fetch HAB data and update Google Sheets
+      if: ${{ !inputs.wordpress_test_only }}
       env:
         GOOGLE_SERVICE_ACCOUNT: ${{ secrets.GOOGLE_SERVICE_ACCOUNT }}
         GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
         TEST_MODE: ${{ inputs.test_mode }}
+        TEST_LIMIT: ${{ inputs.test_limit }}
       run: |
         echo "🌊 Starting HAB data fetch..."
         python fetch_hab_data.py
@@ -55,6 +67,8 @@ jobs:
         GOOGLE_SERVICE_ACCOUNT: ${{ secrets.GOOGLE_SERVICE_ACCOUNT }}
         GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
         TEST_MODE: ${{ inputs.test_mode }}
+        TEST_LIMIT: ${{ inputs.test_limit }}
+        WORDPRESS_TEST_ONLY: ${{ inputs.wordpress_test_only }}
       run: |
         echo "🔄 Starting WordPress sync..."
         python sync_to_wordpress.py

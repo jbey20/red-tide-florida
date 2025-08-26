@@ -19,12 +19,26 @@ class HABDataFetcher:
         # API Configuration
         self.fwc_api_url = "https://atoll.floridamarine.org/arcgis/rest/services/FWC_GIS/OpenData_HAB/MapServer/9/query"
         
+        # Test mode configuration
+        self.test_mode = os.environ.get('TEST_MODE', 'false').lower() == 'true'
+        self.test_limit = int(os.environ.get('TEST_LIMIT', '3'))
+        
+        if self.test_mode:
+            print(f"🧪 Running in TEST MODE (limited to {self.test_limit} locations)")
+        
         # Google Sheets Setup
         self._init_google_sheets()
         
         # Load configuration from sheets
         self.locations_data = self._load_locations()
         self.sample_mapping = self._load_sample_mapping()
+        
+        # Apply test mode limits
+        if self.test_mode:
+            # Limit to first few beaches for testing
+            limited_mapping = dict(list(self.sample_mapping.items())[:self.test_limit])
+            self.sample_mapping = limited_mapping
+            print(f"🧪 Test mode: Limited to {len(self.sample_mapping)} beaches: {list(self.sample_mapping.keys())}")
         
         print(f"Initialized with {len(self.locations_data)} locations and {len(self.sample_mapping)} sample mappings")
     
@@ -401,6 +415,10 @@ class HABDataFetcher:
     
     def update_google_sheets(self, all_results):
         """Update beach_status sheet with all processed data"""
+        if self.test_mode:
+            print(f"🧪 TEST MODE: Skipping Google Sheets update (would update {len(all_results)} records)")
+            return
+            
         try:
             worksheet = self.sheet.worksheet('beach_status')
             
