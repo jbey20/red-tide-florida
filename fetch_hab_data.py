@@ -414,25 +414,26 @@ class HABDataFetcher:
         return slug.strip('-')
     
     def update_google_sheets(self, all_results):
-        """Update beach_status sheet with all processed data"""
+        """Append new data to beach_status sheet (maintaining history)"""
         if self.test_mode:
-            print(f"🧪 TEST MODE: Skipping Google Sheets update (would update {len(all_results)} records)")
+            print(f"🧪 TEST MODE: Skipping Google Sheets update (would append {len(all_results)} records)")
             return
             
         try:
             worksheet = self.sheet.worksheet('beach_status')
             
-            # Clear and add headers
-            worksheet.clear()
-            headers = [
-                'location_name', 'location_type', 'date', 'current_status',
-                'peak_count', 'confidence_score', 'sample_date', 'last_updated',
-                'region', 'city', 'slug'
-            ]
-            worksheet.append_row(headers)
-            time.sleep(1)
+            # Check if headers exist, if not add them
+            existing_data = worksheet.get_all_values()
+            if not existing_data:
+                headers = [
+                    'location_name', 'location_type', 'date', 'current_status',
+                    'peak_count', 'confidence_score', 'sample_date', 'last_updated',
+                    'region', 'city', 'slug'
+                ]
+                worksheet.append_row(headers)
+                time.sleep(1)
             
-            # Add all results
+            # Add all results (appending to existing data)
             today = datetime.now().strftime('%Y-%m-%d')
             timestamp = datetime.now(pytz.timezone('US/Eastern')).strftime('%Y-%m-%d %H:%M:%S')
             
@@ -453,7 +454,7 @@ class HABDataFetcher:
                 worksheet.append_row(row)
                 time.sleep(1.5)  # Rate limiting
             
-            print(f"✅ Updated Google Sheets with {len(all_results)} records")
+            print(f"✅ Appended {len(all_results)} new records to Google Sheets (maintaining history)")
             
         except Exception as e:
             print(f"❌ Failed to update Google Sheets: {e}")

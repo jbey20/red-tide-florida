@@ -107,7 +107,7 @@ class WordPressSyncer:
             raise
     
     def load_sheet_data(self):
-        """Load processed data from beach_status sheet or generate mock data"""
+        """Load most recent processed data from beach_status sheet or generate mock data"""
         if self.wordpress_test_only:
             return self._generate_mock_data()
             
@@ -115,13 +115,25 @@ class WordPressSyncer:
             worksheet = self.sheet.worksheet('beach_status')
             records = worksheet.get_all_records()
             
-            # Group by location type
+            # Group by location name and type, keeping only the most recent record for each
             data_by_type = {'beach': [], 'city': [], 'region': []}
+            latest_records = {}  # Key: (location_name, location_type), Value: record
             
             for record in records:
+                location_name = record.get('location_name', '')
                 location_type = record.get('location_type', '').lower()
-                if location_type in data_by_type:
-                    data_by_type[location_type].append(record)
+                last_updated = record.get('last_updated', '')
+                
+                if location_type in data_by_type and location_name:
+                    key = (location_name, location_type)
+                    
+                    # Keep the most recent record for each location
+                    if key not in latest_records or last_updated > latest_records[key].get('last_updated', ''):
+                        latest_records[key] = record
+            
+            # Convert back to lists organized by type
+            for (location_name, location_type), record in latest_records.items():
+                data_by_type[location_type].append(record)
             
             # Apply test mode limits
             if self.test_mode:
@@ -129,7 +141,7 @@ class WordPressSyncer:
                     data_by_type[location_type] = data_by_type[location_type][:self.test_limit]
                     print(f"🧪 Test mode: Limited {location_type} to {len(data_by_type[location_type])} records")
             
-            print(f"✅ Loaded from Google Sheets:")
+            print(f"✅ Loaded most recent data from Google Sheets:")
             print(f"   - {len(data_by_type['beach'])} beaches")
             print(f"   - {len(data_by_type['city'])} cities")
             print(f"   - {len(data_by_type['region'])} regions")
