@@ -21,7 +21,8 @@ class HABDataFetcher:
         
         # Test mode configuration
         self.test_mode = os.environ.get('TEST_MODE', 'false').lower() == 'true'
-        self.test_limit = int(os.environ.get('TEST_LIMIT', '3'))
+        test_limit_str = os.environ.get('TEST_LIMIT', '3')
+        self.test_limit = int(test_limit_str) if test_limit_str and test_limit_str.strip() else 3
         
         if self.test_mode:
             print(f"🧪 Running in TEST MODE (limited to {self.test_limit} locations)")
