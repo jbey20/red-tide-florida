@@ -22,7 +22,8 @@ class WordPressSyncer:
         
         # Test mode configuration
         self.test_mode = os.environ.get('TEST_MODE', 'false').lower() == 'true'
-        self.test_limit = int(os.environ.get('TEST_LIMIT', '2'))
+        test_limit_str = os.environ.get('TEST_LIMIT', '2')
+        self.test_limit = int(test_limit_str) if test_limit_str and test_limit_str.strip() else 2
         self.wordpress_test_only = os.environ.get('WORDPRESS_TEST_ONLY', 'false').lower() == 'true'
         
         if self.test_mode:
