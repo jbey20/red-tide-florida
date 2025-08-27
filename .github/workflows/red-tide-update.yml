@@ -2,7 +2,7 @@ name: Red Tide Data Update
 
 on:
   schedule:
-    - cron: '0 */6 * * *'  # Every 6 hours
+    - cron: '30 5 * * *'  # Every 6 hours
   workflow_dispatch:  # Manual trigger
     inputs:
       test_mode:
@@ -52,8 +52,8 @@ jobs:
       env:
         GOOGLE_SERVICE_ACCOUNT: ${{ secrets.GOOGLE_SERVICE_ACCOUNT }}
         GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
-        TEST_MODE: ${{ inputs.test_mode }}
-        TEST_LIMIT: ${{ inputs.test_limit }}
+        TEST_MODE: ${{ inputs.test_mode || 'false' }}
+        TEST_LIMIT: ${{ inputs.test_limit || '3' }}
       run: |
         echo "🌊 Starting HAB data fetch..."
         python fetch_hab_data.py
@@ -66,9 +66,9 @@ jobs:
         WORDPRESS_APP_PASSWORD: ${{ secrets.WORDPRESS_APP_PASSWORD }}
         GOOGLE_SERVICE_ACCOUNT: ${{ secrets.GOOGLE_SERVICE_ACCOUNT }}
         GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
-        TEST_MODE: ${{ inputs.test_mode }}
-        TEST_LIMIT: ${{ inputs.test_limit }}
-        WORDPRESS_TEST_ONLY: ${{ inputs.wordpress_test_only }}
+        TEST_MODE: ${{ inputs.test_mode || 'false' }}
+        TEST_LIMIT: ${{ inputs.test_limit || '3' }}
+        WORDPRESS_TEST_ONLY: ${{ inputs.wordpress_test_only || 'false' }}
       run: |
         echo "🔄 Starting WordPress sync..."
         python sync_to_wordpress.py
