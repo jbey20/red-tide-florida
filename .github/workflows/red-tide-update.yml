@@ -2,7 +2,7 @@ name: Red Tide Data Update
 
 on:
   schedule:
-    - cron: '30 5 * * *'  # Every 6 hours
+    - cron: '24 20 * * *'  # Every 6 hours
   workflow_dispatch:  # Manual trigger
     inputs:
       test_mode:
