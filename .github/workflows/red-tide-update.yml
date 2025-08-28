@@ -2,7 +2,7 @@ name: Red Tide Data Update
 
 on:
   schedule:
-  - cron: '40 1 * * *' # Every day at 1:39 AM UTC (8:39 PM EST)
+    - cron: '20 2 * * *'  # 2:20 AM UTC = 9:20 PM EST (10:20 PM EDT)
   workflow_dispatch:  # Manual trigger
     inputs:
       test_mode:
@@ -26,6 +26,13 @@ on:
         required: false
         default: "3"
 
+env:
+  # Global environment variables
+  TEST_MODE: ${{ inputs.test_mode == true && 'true' || 'false' }}
+  TEST_LIMIT: ${{ inputs.test_limit || '3' }}
+  SKIP_WORDPRESS: ${{ inputs.skip_wordpress == true && 'true' || 'false' }}
+  WORDPRESS_TEST_ONLY: ${{ inputs.wordpress_test_only == true && 'true' || 'false' }}
+
 jobs:
   update-red-tide-data:
     runs-on: ubuntu-latest
@@ -47,15 +54,44 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
+    - name: Validate environment and files
+      run: |
+        echo "🔍 Validating environment..."
+        echo "Current time (UTC): $(date -u)"
+        echo "Test mode: $TEST_MODE"
+        echo "Skip WordPress: $SKIP_WORDPRESS"
+        echo "WordPress test only: $WORDPRESS_TEST_ONLY"
+        
+        # Check if files exist
+        echo "📁 Checking required files..."
+        if [ -f "fetch_hab_data.py" ]; then
+          echo "✅ fetch_hab_data.py exists"
+        else
+          echo "❌ fetch_hab_data.py missing"
+        fi
+        
+        if [ -f "sync_to_wordpress.py" ]; then
+          echo "✅ sync_to_wordpress.py exists"
+        else
+          echo "❌ sync_to_wordpress.py missing"
+        fi
+        
+        if [ -f "requirements.txt" ]; then
+          echo "✅ requirements.txt exists"
+        else
+          echo "❌ requirements.txt missing"
+        fi
+
     - name: Fetch HAB data and update Google Sheets
       if: ${{ !inputs.wordpress_test_only }}
       env:
         GOOGLE_SERVICE_ACCOUNT: ${{ secrets.GOOGLE_SERVICE_ACCOUNT }}
         GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
-        TEST_MODE: ${{ inputs.test_mode || 'false' }}
-        TEST_LIMIT: ${{ inputs.test_limit || '3' }}
+        TEST_MODE: ${{ env.TEST_MODE }}
+        TEST_LIMIT: ${{ env.TEST_LIMIT }}
       run: |
         echo "🌊 Starting HAB data fetch..."
+        echo "Timestamp: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
         python fetch_hab_data.py
 
     - name: Sync to WordPress
@@ -66,16 +102,33 @@ jobs:
         WORDPRESS_APP_PASSWORD: ${{ secrets.WORDPRESS_APP_PASSWORD }}
         GOOGLE_SERVICE_ACCOUNT: ${{ secrets.GOOGLE_SERVICE_ACCOUNT }}
         GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
-        TEST_MODE: ${{ inputs.test_mode || 'false' }}
-        TEST_LIMIT: ${{ inputs.test_limit || '3' }}
-        WORDPRESS_TEST_ONLY: ${{ inputs.wordpress_test_only || 'false' }}
+        TEST_MODE: ${{ env.TEST_MODE }}
+        TEST_LIMIT: ${{ env.TEST_LIMIT }}
+        WORDPRESS_TEST_ONLY: ${{ env.WORDPRESS_TEST_ONLY }}
       run: |
         echo "🔄 Starting WordPress sync..."
+        echo "Timestamp: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
         python sync_to_wordpress.py
+
+    - name: Create execution summary
+      if: always()
+      run: |
+        echo "## Red Tide Processing Summary" >> $GITHUB_STEP_SUMMARY
+        echo "- **Execution Time**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+        echo "- **Test Mode**: $TEST_MODE" >> $GITHUB_STEP_SUMMARY
+        echo "- **Skip WordPress**: $SKIP_WORDPRESS" >> $GITHUB_STEP_SUMMARY
+        echo "- **WordPress Test Only**: $WORDPRESS_TEST_ONLY" >> $GITHUB_STEP_SUMMARY
+        
+        if [ "$?" -eq 0 ]; then
+          echo "- **Status**: ✅ Success" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "- **Status**: ❌ Failed" >> $GITHUB_STEP_SUMMARY
+        fi
 
     - name: Notify on failure
       if: failure()
       run: |
-        echo "❌ Red tide update failed!"
+        echo "❌ Red tide update failed at $(date -u)"
         echo "Check the logs above for error details."
+        echo "Job was supposed to run at 9:20 PM EST / 10:20 PM EDT"
         # Add webhook notification here if desired
