@@ -2,7 +2,7 @@ name: Red Tide Data Update
 
 on:
   schedule:
-    - cron: '38 1 * * *'  # 2:20 AM UTC = 9:20 PM EST (10:20 PM EDT)
+    - cron: '50 1 * * *'  # 2:20 AM UTC = 9:20 PM EST (10:20 PM EDT)
   workflow_dispatch:  # Manual trigger
     inputs:
       test_mode:
