@@ -400,6 +400,23 @@ class WordPressSyncer:
                 'beaches_avoid': int(data.get('beaches_avoid', 0))
             })
             
+            if post_type == 'city':
+                # Add city-specific ACF fields
+                hab_sites = self._get_city_hab_sampling_sites(location_name)
+                acf_data.update({
+                    'parent_city': data.get('city', '') or None,  # Self-reference
+                    'parent_region': data.get('region', '') or None,
+                    'hab_sampling_sites': hab_sites
+                })
+                
+                # Debug: Print city ACF data
+                print(f"   🔍 City ACF data for {location_name}:")
+                print(f"      - parent_city: {acf_data.get('parent_city', 'N/A')}")
+                print(f"      - parent_region: {acf_data.get('parent_region', 'N/A')}")
+                print(f"      - hab_sampling_sites count: {len(hab_sites)}")
+                for i, site in enumerate(hab_sites[:3]):  # Show first 3 sites
+                    print(f"        Site {i+1}: {site.get('hab_id', 'N/A')} - {site.get('sample_location', 'N/A')}")
+            
             if post_type == 'region':
                 acf_data.update({
                     'city_count': int(data.get('city_count', 0)),
@@ -461,6 +478,64 @@ class WordPressSyncer:
         except Exception as e:
             print(f"   Warning: Could not load location data for {beach_name}: {e}")
             return {}
+    
+    def _get_city_hab_sampling_sites(self, city_name):
+        """Get HAB sampling sites for a city from the sample_mapping sheet"""
+        if self.wordpress_test_only:
+            # Return mock HAB sampling sites for testing
+            return [
+                {
+                    'hab_id': 'TEST_HAB_001',
+                    'sample_location': f'Test Location 1 in {city_name}',
+                    'distance_miles': '0.5',
+                    'cell_count': '2500',
+                    'sample_date': '2025-01-15'
+                },
+                {
+                    'hab_id': 'TEST_HAB_002', 
+                    'sample_location': f'Test Location 2 in {city_name}',
+                    'distance_miles': '1.2',
+                    'cell_count': '15000',
+                    'sample_date': '2025-01-14'
+                }
+            ]
+            
+        try:
+            # First, get the locations sheet to map beaches to cities
+            locations_worksheet = self.sheet.worksheet('locations')
+            locations_records = locations_worksheet.get_all_records()
+            
+            # Create a mapping of beach names to cities
+            beach_to_city = {}
+            for location_record in locations_records:
+                beach_name = location_record.get('beach', '')
+                beach_city = location_record.get('city', '')
+                if beach_name and beach_city:
+                    beach_to_city[beach_name] = beach_city
+            
+            # Now get the sample mapping sheet
+            sample_worksheet = self.sheet.worksheet('sample_mapping')
+            sample_records = sample_worksheet.get_all_records()
+            
+            hab_sites = []
+            for record in sample_records:
+                beach_name = record.get('beach', '')
+                
+                # Check if this beach belongs to the target city
+                if beach_name in beach_to_city and beach_to_city[beach_name] == city_name:
+                    hab_sites.append({
+                        'hab_id': record.get('HAB_id', ''),
+                        'sample_location': record.get('sample_location', ''),
+                        'distance_miles': str(record.get('sample_distance', 0)),
+                        'cell_count': str(record.get('cell_count', 0)),
+                        'sample_date': record.get('sample_date', '')
+                    })
+            
+            return hab_sites
+            
+        except Exception as e:
+            print(f"   Warning: Could not load HAB sampling sites for {city_name}: {e}")
+            return []
     
     def sync_post_type(self, data_list, post_type):
         """Sync all posts of a specific type"""
