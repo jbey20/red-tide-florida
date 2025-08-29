@@ -1,0 +1,1959 @@
+[
+    {
+        "key": "group_red_tide_beach",
+        "title": "Beach-Specific Information",
+        "fields": [
+            {
+                "key": "field_rt_beach_city",
+                "label": "City",
+                "name": "city",
+                "aria-label": "",
+                "type": "text",
+                "instructions": "City where beach is located",
+                "required": 1,
+                "conditional_logic": 0,
+                "wrapper": {
+                    "width": "50",
+                    "class": "",
+                    "id": ""
+                },
+                "default_value": "",
+                "maxlength": "",
+                "allow_in_bindings": 1,
+                "placeholder": "Sarasota",
+                "prepend": "",
+                "append": ""
+            },
+            {
+                "key": "field_rt_zip_code",
+                "label": "ZIP Code",
+                "name": "zip_code",
+                "aria-label": "",
+                "type": "text",
+                "instructions": "",
+                "required": 0,
+                "conditional_logic": 0,
+                "wrapper": {
+                    "width": "50",
+                    "class": "",
+                    "id": ""
+                },
+                "default_value": "",
+                "maxlength": "",
+                "allow_in_bindings": 1,
+                "placeholder": 34242,
+                "prepend": "",
+                "append": ""
+            },
+            {
+                "key": "field_rt_coordinates",
+                "label": "Coordinates",
+                "name": "coordinates",
+                "aria-label": "",
+                "type": "text",
+                "instructions": "Latitude, Longitude (comma-separated)",
+                "required": 0,
+                "conditional_logic": 0,
+                "wrapper": {
+                    "width": "50",
+                    "class": "",
+                    "id": ""
+                },
+                "default_value": "",
+                "maxlength": "",
+                "allow_in_bindings": 1,
+                "placeholder": "27.265862, -82.552521",
+                "prepend": "",
+                "append": ""
+            },
+            {
+                "key": "field_rt_full_address",
+                "label": "Full Address",
+                "name": "full_address",
+                "aria-label": "",
+                "type": "text",
+                "instructions": "Complete street address",
+                "required": 0,
+                "conditional_logic": 0,
+                "wrapper": {
+                    "width": "50",
+                    "class": "",
+                    "id": ""
+                },
+                "default_value": "",
+                "maxlength": "",
+                "allow_in_bindings": 1,
+                "placeholder": "948 Beach Road, Sarasota, FL 34242",
+                "prepend": "",
+                "append": ""
+            },
+            {
+                "key": "field_rt_peak_count",
+                "label": "Peak Cell Count",
+                "name": "peak_count",
+                "aria-label": "",
+                "type": "number",
+                "instructions": "Highest cell count from sampling sites (cells\/L)",
+                "required": 0,
+                "conditional_logic": 0,
+                "wrapper": {
+                    "width": "33",
+                    "class": "",
+                    "id": ""
+                },
+                "default_value": 0,
+                "min": 0,
+                "max": "",
+                "allow_in_bindings": 1,
+                "placeholder": 10000,
+                "step": "",
+                "prepend": "",
+                "append": "cells\/L"
+            },
+            {
+                "key": "field_rt_confidence_score",
+                "label": "Confidence Score",
+                "name": "confidence_score",
+                "aria-label": "",
+                "type": "number",
+                "instructions": "Data confidence percentage (0-100)",
+                "required": 0,
+                "conditional_logic": 0,
+                "wrapper": {
+                    "width": "33",
+                    "class": "",
+                    "id": ""
+                },
+                "default_value": 0,
+                "min": 0,
+                "max": 100,
+                "allow_in_bindings": 1,
+                "placeholder": 85,
+                "step": "",
+                "prepend": "",
+                "append": "%"
+            },
+            {
+                "key": "field_rt_sample_date",
+                "label": "Sample Date",
+                "name": "sample_date",
+                "aria-label": "",
+                "type": "date_picker",
+                "instructions": "Date of most recent HAB sample",
+                "required": 0,
+                "conditional_logic": 0,
+                "wrapper": {
+                    "width": "33",
+                    "class": "",
+                    "id": ""
+                },
+                "display_format": "M j, Y",
+                "return_format": "Y-m-d",
+                "first_day": 1,
+                "allow_in_bindings": 1,
+                "default_to_current_date": 0
+            },
+            {
+                "key": "field_rt_parent_city_post",
+                "label": "Parent City",
+                "name": "parent_city_post",
+                "aria-label": "",
+                "type": "post_object",
+                "instructions": "Link to the parent city post",
+                "required": 0,
+                "conditional_logic": 0,
+                "wrapper": {
+                    "width": "50",
+                    "class": "",
+                    "id": ""
+                },
+                "post_type": [
+                    "city"
+                ],
+                "post_status": [
+                    "publish"
+                ],
+                "taxonomy": "",
+                "return_format": "object",
+                "multiple": 0,
+                "allow_null": 1,
+                "bidirectional": 0,
+                "ui": 1,
+                "bidirectional_target": []
+            },
+            {
+                "key": "field_rt_parent_region_post",
+                "label": "Parent Region",
+                "name": "parent_region_post",
+                "aria-label": "",
+                "type": "post_object",
+                "instructions": "Link to the parent region post",
+                "required": 0,
+                "conditional_logic": 0,
+                "wrapper": {
+                    "width": "50",
+                    "class": "",
+                    "id": ""
+                },
+                "post_type": [
+                    "region"
+                ],
+                "post_status": [
+                    "publish"
+                ],
+                "taxonomy": "",
+                "return_format": "object",
+                "multiple": 0,
+                "allow_null": 1,
+                "allow_in_bindings": 1,
+                "bidirectional": 0,
+                "ui": 1,
+                "bidirectional_target": []
+            },
+            {
+                "key": "field_rt_sampling_sites",
+                "label": "HAB Sampling Sites",
+                "name": "sampling_sites",
+                "aria-label": "",
+                "type": "repeater",
+                "instructions": "Sampling sites that contribute to this beach's status",
+                "required": 0,
+                "conditional_logic": 0,
+                "wrapper": {
+                    "width": "",
+                    "class": "",
+                    "id": ""
+                },
+                "layout": "table",
+                "pagination": 0,
+                "min": 0,
+                "max": 0,
+                "collapsed": "",
+                "button_label": "Add Sampling Site",
+                "allow_in_bindings": 1,
+                "rows_per_page": 20,
+                "sub_fields": [
+                    {
+                        "key": "field_rt_hab_id",
+                        "label": "HAB ID",
+                        "name": "hab_id",
+                        "aria-label": "",
+                        "type": "text",
+                        "instructions": "Florida HAB monitoring site ID",
+                        "required": 0,
+                        "conditional_logic": 0,
+                        "wrapper": {
+                            "width": "",
+                            "class": "",
+                            "id": ""
+                        },
+                        "default_value": "",
+                        "maxlength": "",
+                        "allow_in_bindings": 1,
+                        "placeholder": "HABW250819-050",
+                        "prepend": "",
+                        "append": "",
+                        "parent_repeater": "field_rt_sampling_sites"
+                    },
+                    {
+                        "key": "field_rt_sample_location",
+                        "label": "Sample Location",
+                        "name": "sample_location",
+                        "aria-label": "",
+                        "type": "text",
+                        "instructions": "Description of sampling site location",
+                        "required": 0,
+                        "conditional_logic": 0,
+                        "wrapper": {
+                            "width": "",
+                            "class": "",
+                            "id": ""
+                        },
+                        "default_value": "",
+                        "maxlength": "",
+                        "allow_in_bindings": 1,
+                        "placeholder": "Siesta Beach",
+                        "prepend": "",
+                        "append": "",
+                        "parent_repeater": "field_rt_sampling_sites"
+                    },
+                    {
+                        "key": "field_rt_distance_miles",
+                        "label": "Distance (miles)",
+                        "name": "distance_miles",
+                        "aria-label": "",
+                        "type": "number",
+                        "instructions": "Distance from beach to sampling site",
+                        "required": 0,
+                        "conditional_logic": 0,
+                        "wrapper": {
+                            "width": "",
+                            "class": "",
+                            "id": ""
+                        },
+                        "default_value": "",
+                        "min": 0,
+                        "max": "",
+                        "allow_in_bindings": 1,
+                        "placeholder": "0.5",
+                        "step": "0.1",
+                        "prepend": "",
+                        "append": "mi",
+                        "parent_repeater": "field_rt_sampling_sites"
+                    },
+                    {
+                        "key": "field_rt_current_concentration",
+                        "label": "Cell Count",
+                        "name": "current_concentration",
+                        "aria-label": "",
+                        "type": "number",
+                        "instructions": "Current cell concentration",
+                        "required": 0,
+                        "conditional_logic": 0,
+                        "wrapper": {
+                            "width": "",
+                            "class": "",
+                            "id": ""
+                        },
+                        "default_value": "",
+                        "min": 0,
+                        "max": "",
+                        "allow_in_bindings": 1,
+                        "placeholder": 5000,
+                        "step": "",
+                        "prepend": "",
+                        "append": "cells\/L",
+                        "parent_repeater": "field_rt_sampling_sites"
+                    },
+                    {
+                        "key": "field_rt_site_sample_date",
+                        "label": "Sample Date",
+                        "name": "sample_date",
+                        "aria-label": "",
+                        "type": "date_picker",
+                        "instructions": "Date this site was sampled",
+                        "required": 0,
+                        "conditional_logic": 0,
+                        "wrapper": {
+                            "width": "",
+                            "class": "",
+                            "id": ""
+                        },
+                        "display_format": "m\/d\/Y",
+                        "return_format": "Y-m-d",
+                        "first_day": 1,
+                        "allow_in_bindings": 1,
+                        "parent_repeater": "field_rt_sampling_sites",
+                        "default_to_current_date": 0
+                    }
+                ]
+            },
+            {
+                "key": "field_68b1df43111e1",
+                "label": "Beach Description",
+                "name": "beach_description",
+                "aria-label": "",
+                "type": "textarea",
+                "instructions": "",
+                "required": 0,
+                "conditional_logic": 0,
+                "wrapper": {
+                    "width": "",
+                    "class": "",
+                    "id": ""
+                },
+                "default_value": "",
+                "maxlength": "",
+                "allow_in_bindings": 1,
+                "rows": "",
+                "placeholder": "",
+                "new_lines": ""
+            },
+            {
+                "key": "field_68b2049f6b328",
+                "label": "Nearby Beaches",
+                "name": "nearby_beaches",
+                "aria-label": "",
+                "type": "repeater",
+                "instructions": "",
+                "required": 0,
+                "conditional_logic": 0,
+                "wrapper": {
+                    "width": "",
+                    "class": "",
+                    "id": ""
+                },
+                "layout": "table",
+                "pagination": 0,
+                "min": 0,
+                "max": 0,
+                "collapsed": "",
+                "button_label": "Add Row",
+                "rows_per_page": 20,
+                "sub_fields": [
+                    {
+                        "key": "field_68b2049f6b32d",
+                        "label": "Beach",
+                        "name": "beach",
+                        "aria-label": "",
+                        "type": "post_object",
+                        "instructions": "",
+                        "required": 0,
+                        "conditional_logic": 0,
+                        "wrapper": {
+                            "width": "",
+                            "class": "",
+                            "id": ""
+                        },
+                        "post_type": [
+                            "beach"
+                        ],
+                        "post_status": [
+                            "publish"
+                        ],
+                        "taxonomy": "",
+                        "return_format": "",
+                        "multiple": 0,
+                        "allow_null": 0,
+                        "allow_in_bindings": 1,
+                        "bidirectional": 0,
+                        "ui": 1,
+                        "bidirectional_target": [],
+                        "parent_repeater": "field_68b2049f6b328"
+                    },
+                    {
+                        "key": "field_68b2049f6b32e",
+                        "label": "Distance",
+                        "name": "distance",
+                        "aria-label": "",
+                        "type": "number",
+                        "instructions": "",
+                        "required": 0,
+                        "conditional_logic": 0,
+                        "wrapper": {
+                            "width": "",
+                            "class": "",
+                            "id": ""
+                        },
+                        "default_value": "",
+                        "min": "",
+                        "max": "",
+                        "allow_in_bindings": 1,
+                        "placeholder": "",
+                        "step": "",
+                        "prepend": "",
+                        "append": "mi.",
+                        "parent_repeater": "field_68b2049f6b328"
+                    },
+                    {
+                        "key": "field_68b2049f6b32f",
+                        "label": "Current Status",
+                        "name": "current_status",
+                        "aria-label": "",
+                        "type": "select",
+                        "instructions": "",
+                        "required": 0,
+                        "conditional_logic": 0,
+                        "wrapper": {
+                            "width": "",
+                            "class": "",
+                            "id": ""
+                        },
+                        "choices": {
+                            "safe": "Safe",
+                            "caution": "Caution",
+                            "avoid": "Avoid",
+                            "no_data": "No Data"
+                        },
+                        "default_value": false,
+                        "return_format": "label",
+                        "multiple": 0,
+                        "allow_null": 0,
+                        "allow_in_bindings": 1,
+                        "ui": 0,
+                        "ajax": 0,
+                        "placeholder": "",
+                        "create_options": 0,
+                        "save_options": 0,
+                        "parent_repeater": "field_68b2049f6b328"
+                    },
+                    {
+                        "key": "field_68b2049f6b330",
+                        "label": "Status Color",
+                        "name": "status_color",
+                        "aria-label": "",
+                        "type": "color_picker",
+                        "instructions": "",
+                        "required": 0,
+                        "conditional_logic": 0,
+                        "wrapper": {
+                            "width": "",
+                            "class": "",
+                            "id": ""
+                        },
+                        "default_value": "#6c757d",
+                        "enable_opacity": 0,
+                        "return_format": "string",
+                        "allow_in_bindings": 1,
+                        "parent_repeater": "field_68b2049f6b328"
+                    },
+                    {
+                        "key": "field_68b2049f6b331",
+                        "label": "Description",
+                        "name": "description",
+                        "aria-label": "",
+                        "type": "textarea",
+                        "instructions": "",
+                        "required": 0,
+                        "conditional_logic": 0,
+                        "wrapper": {
+                            "width": "",
+                            "class": "",
+                            "id": ""
+                        },
+                        "default_value": "",
+                        "maxlength": "",
+                        "allow_in_bindings": 1,
+                        "rows": 2,
+                        "placeholder": "",
+                        "new_lines": "",
+                        "parent_repeater": "field_68b2049f6b328"
+                    }
+                ]
+            },
+            {
+                "key": "field_68b204e973edc",
+                "label": "Nearby Regions",
+                "name": "nearby_regions",
+                "aria-label": "",
+                "type": "repeater",
+                "instructions": "",
+                "required": 0,
+                "conditional_logic": 0,
+                "wrapper": {
+                    "width": "",
+                    "class": "",
+                    "id": ""
+                },
+                "layout": "table",
+                "pagination": 0,
+                "min": 0,
+                "max": 0,
+                "collapsed": "",
+                "button_label": "Add Row",
+                "rows_per_page": 20,
+                "sub_fields": [
+                    {
+                        "key": "field_68b204e973ee1",
+                        "label": "Region",
+                        "name": "region",
+                        "aria-label": "",
+                        "type": "post_object",
+                        "instructions": "",
+                        "required": 0,
+                        "conditional_logic": 0,
+                        "wrapper": {
+                            "width": "",
+                            "class": "",
+                            "id": ""
+                        },
+                        "post_type": [
+                            "region"
+                        ],
+                        "post_status": [
+                            "publish"
+                        ],
+                        "taxonomy": "",
+                        "return_format": "object",
+                        "multiple": 0,
+                        "allow_null": 0,
+                        "allow_in_bindings": 1,
+                        "bidirectional": 0,
+                        "ui": 1,
+                        "bidirectional_target": [],
+                        "parent_repeater": "field_68b204e973edc"
+                    },
+                    {
+                        "key": "field_68b204e973ee2",
+                        "label": "Distance",
+                        "name": "distance",
+                        "aria-label": "",
+                        "type": "number",
+                        "instructions": "",
+                        "required": 0,
+                        "conditional_logic": 0,
+                        "wrapper": {
+                            "width": "",
+                            "class": "",
+                            "id": ""
+                        },
+                        "default_value": "",
+                        "min": "",
+                        "max": "",
+                        "allow_in_bindings": 1,
+                        "placeholder": "",
+                        "step": "",
+                        "prepend": "",
+                        "append": "mi.",
+                        "parent_repeater": "field_68b204e973edc"
+                    },
+                    {
+                        "key": "field_68b204e973ee3",
+                        "label": "Current Status",
+                        "name": "current_status",
+                        "aria-label": "",
+                        "type": "select",
+                        "instructions": "",
+                        "required": 0,
+                        "conditional_logic": 0,
+                        "wrapper": {
+                            "width": "",
+                            "class": "",
+                            "id": ""
+                        },
+                        "choices": {
+                            "safe": "Safe",
+                            "caution": "Caution",
+                            "avoid": "Avoid",
+                            "no_data": "No Data"
+                        },
+                        "default_value": false,
+                        "return_format": "label",
+                        "multiple": 0,
+                        "allow_null": 0,
+                        "allow_in_bindings": 1,
+                        "ui": 0,
+                        "ajax": 0,
+                        "placeholder": "",
+                        "create_options": 0,
+                        "save_options": 0,
+                        "parent_repeater": "field_68b204e973edc"
+                    },
+                    {
+                        "key": "field_68b204e973ee4",
+                        "label": "Status Color",
+                        "name": "status_color",
+                        "aria-label": "",
+                        "type": "color_picker",
+                        "instructions": "",
+                        "required": 0,
+                        "conditional_logic": 0,
+                        "wrapper": {
+                            "width": "",
+                            "class": "",
+                            "id": ""
+                        },
+                        "default_value": "#6c757d",
+                        "enable_opacity": 0,
+                        "return_format": "string",
+                        "allow_in_bindings": 1,
+                        "parent_repeater": "field_68b204e973edc"
+                    },
+                    {
+                        "key": "field_68b204e973ee5",
+                        "label": "Description",
+                        "name": "description",
+                        "aria-label": "",
+                        "type": "textarea",
+                        "instructions": "",
+                        "required": 0,
+                        "conditional_logic": 0,
+                        "wrapper": {
+                            "width": "",
+                            "class": "",
+                            "id": ""
+                        },
+                        "default_value": "",
+                        "maxlength": "",
+                        "allow_in_bindings": 1,
+                        "rows": 2,
+                        "placeholder": "",
+                        "new_lines": "",
+                        "parent_repeater": "field_68b204e973edc"
+                    }
+                ]
+            }
+        ],
+        "location": [
+            [
+                {
+                    "param": "post_type",
+                    "operator": "==",
+                    "value": "beach"
+                }
+            ]
+        ],
+        "menu_order": 0,
+        "position": "normal",
+        "style": "default",
+        "label_placement": "top",
+        "instruction_placement": "label",
+        "hide_on_screen": "",
+        "active": true,
+        "description": "Fields specific to individual beach monitoring",
+        "show_in_rest": 1
+    },
+    {
+        "key": "group_68b1dc4586350",
+        "title": "City Aggregate Data",
+        "fields": [
+            {
+                "key": "field_68b1dc8a396a3",
+                "label": "Child Beaches",
+                "name": "child_beaches",
+                "aria-label": "",
+                "type": "post_object",
+                "instructions": "",
+                "required": 0,
+                "conditional_logic": 0,
+                "wrapper": {
+                    "width": "",
+                    "class": "",
+                    "id": ""
+                },
+                "post_type": [
+                    "beach"
+                ],
+                "post_status": [
+                    "publish"
+                ],
+                "taxonomy": "",
+                "return_format": "object",
+                "multiple": 1,
+                "allow_null": 0,
+                "allow_in_bindings": 1,
+                "bidirectional": 1,
+                "bidirectional_target": [
+                    "field_rt_parent_city_post"
+                ],
+                "ui": 1
+            },
+            {
+                "key": "field_68b1dd05396a4",
+                "label": "Parent Region",
+                "name": "parent_region",
+                "aria-label": "",
+                "type": "post_object",
+                "instructions": "",
+                "required": 0,
+                "conditional_logic": 0,
+                "wrapper": {
+                    "width": "",
+                    "class": "",
+                    "id": ""
+                },
+                "post_type": [
+                    "region"
+                ],
+                "post_status": [
+                    "publish"
+                ],
+                "taxonomy": "",
+                "return_format": "object",
+                "multiple": 1,
+                "allow_null": 0,
+                "allow_in_bindings": 0,
+                "bidirectional": 1,
+                "bidirectional_target": [
+                    "field_rt_region_child_cities"
+                ],
+                "ui": 1
+            },
+            {
+                "key": "field_68b1dd5f396a5",
+                "label": "Peak Cell Count",
+                "name": "peak_cell_count",
+                "aria-label": "",
+                "type": "number",
+                "instructions": "",
+                "required": 0,
+                "conditional_logic": 0,
+                "wrapper": {
+                    "width": "",
+                    "class": "",
+                    "id": ""
+                },
+                "default_value": "",
+                "min": "",
+                "max": "",
+                "allow_in_bindings": 0,
+                "placeholder": "",
+                "step": "",
+                "prepend": "",
+                "append": ""
+            },
+            {
+                "key": "field_68b1dd8e396a6",
+                "label": "Average Cell Count",
+                "name": "average_cell_count",
+                "aria-label": "",
+                "type": "number",
+                "instructions": "",
+                "required": 0,
+                "conditional_logic": 0,
+                "wrapper": {
+                    "width": "",
+                    "class": "",
+                    "id": ""
+                },
+                "default_value": "",
+                "min": "",
+                "max": "",
+                "allow_in_bindings": 1,
+                "placeholder": "",
+                "step": "",
+                "prepend": "",
+                "append": ""
+            },
+            {
+                "key": "field_68b1dda6396a7",
+                "label": "Average Confidence",
+                "name": "average_confidence",
+                "aria-label": "",
+                "type": "number",
+                "instructions": "",
+                "required": 0,
+                "conditional_logic": 0,
+                "wrapper": {
+                    "width": "",
+                    "class": "",
+                    "id": ""
+                },
+                "default_value": "",
+                "min": "",
+                "max": "",
+                "allow_in_bindings": 1,
+                "placeholder": "",
+                "step": "",
+                "prepend": "",
+                "append": ""
+            },
+            {
+                "key": "field_68b1ddc0396a8",
+                "label": "Latest Sample Data",
+                "name": "latest_sample_data",
+                "aria-label": "",
+                "type": "date_picker",
+                "instructions": "",
+                "required": 0,
+                "conditional_logic": 0,
+                "wrapper": {
+                    "width": "",
+                    "class": "",
+                    "id": ""
+                },
+                "display_format": "d\/m\/Y",
+                "return_format": "M j, Y",
+                "first_day": 1,
+                "default_to_current_date": 0,
+                "allow_in_bindings": 1
+            },
+            {
+                "key": "field_68b1de0a396a9",
+                "label": "Total Beaches",
+                "name": "total_beaches",
+                "aria-label": "",
+                "type": "number",
+                "instructions": "",
+                "required": 0,
+                "conditional_logic": 0,
+                "wrapper": {
+                    "width": "",
+                    "class": "",
+                    "id": ""
+                },
+                "default_value": "",
+                "min": "",
+                "max": "",
+                "allow_in_bindings": 1,
+                "placeholder": "",
+                "step": "",
+                "prepend": "",
+                "append": ""
+            },
+            {
+                "key": "field_68b1de48344ff",
+                "label": "Beaches - Safe",
+                "name": "beaches_safe",
+                "aria-label": "",
+                "type": "number",
+                "instructions": "",
+                "required": 0,
+                "conditional_logic": 0,
+                "wrapper": {
+                    "width": "",
+                    "class": "",
+                    "id": ""
+                },
+                "default_value": "",
+                "min": "",
+                "max": "",
+                "allow_in_bindings": 1,
+                "placeholder": "",
+                "step": "",
+                "prepend": "",
+                "append": ""
+            },
+            {
+                "key": "field_68b1de6b34500",
+                "label": "Beaches - Caution",
+                "name": "beaches_caution",
+                "aria-label": "",
+                "type": "number",
+                "instructions": "",
+                "required": 0,
+                "conditional_logic": 0,
+                "wrapper": {
+                    "width": "",
+                    "class": "",
+                    "id": ""
+                },
+                "default_value": "",
+                "min": "",
+                "max": "",
+                "allow_in_bindings": 0,
+                "placeholder": "",
+                "step": "",
+                "prepend": "",
+                "append": ""
+            },
+            {
+                "key": "field_68b1def634501",
+                "label": "Beaches - Avoid",
+                "name": "beaches_avoid",
+                "aria-label": "",
+                "type": "number",
+                "instructions": "",
+                "required": 0,
+                "conditional_logic": 0,
+                "wrapper": {
+                    "width": "",
+                    "class": "",
+                    "id": ""
+                },
+                "default_value": "",
+                "min": "",
+                "max": "",
+                "allow_in_bindings": 1,
+                "placeholder": "",
+                "step": "",
+                "prepend": "",
+                "append": ""
+            },
+            {
+                "key": "field_68b1df1934502",
+                "label": "City Description",
+                "name": "city_description",
+                "aria-label": "",
+                "type": "textarea",
+                "instructions": "",
+                "required": 0,
+                "conditional_logic": 0,
+                "wrapper": {
+                    "width": "",
+                    "class": "",
+                    "id": ""
+                },
+                "default_value": "",
+                "maxlength": "",
+                "allow_in_bindings": 1,
+                "rows": "",
+                "placeholder": "",
+                "new_lines": ""
+            },
+            {
+                "key": "field_68b202a8ec6e1",
+                "label": "Nearby Cities",
+                "name": "nearby_cities",
+                "aria-label": "",
+                "type": "repeater",
+                "instructions": "",
+                "required": 0,
+                "conditional_logic": 0,
+                "wrapper": {
+                    "width": "",
+                    "class": "",
+                    "id": ""
+                },
+                "layout": "table",
+                "pagination": 0,
+                "min": 0,
+                "max": 0,
+                "collapsed": "",
+                "button_label": "Add Row",
+                "rows_per_page": 20,
+                "sub_fields": [
+                    {
+                        "key": "field_68b202d0ec6e2",
+                        "label": "City",
+                        "name": "city",
+                        "aria-label": "",
+                        "type": "post_object",
+                        "instructions": "",
+                        "required": 0,
+                        "conditional_logic": 0,
+                        "wrapper": {
+                            "width": "",
+                            "class": "",
+                            "id": ""
+                        },
+                        "post_type": [
+                            "city"
+                        ],
+                        "post_status": [
+                            "publish"
+                        ],
+                        "taxonomy": "",
+                        "return_format": "object",
+                        "multiple": 0,
+                        "allow_null": 0,
+                        "allow_in_bindings": 1,
+                        "bidirectional": 0,
+                        "ui": 1,
+                        "bidirectional_target": [],
+                        "parent_repeater": "field_68b202a8ec6e1"
+                    },
+                    {
+                        "key": "field_68b20320ec6e3",
+                        "label": "Distance",
+                        "name": "distance",
+                        "aria-label": "",
+                        "type": "number",
+                        "instructions": "",
+                        "required": 0,
+                        "conditional_logic": 0,
+                        "wrapper": {
+                            "width": "",
+                            "class": "",
+                            "id": ""
+                        },
+                        "default_value": "",
+                        "min": "",
+                        "max": "",
+                        "allow_in_bindings": 1,
+                        "placeholder": "",
+                        "step": "",
+                        "prepend": "",
+                        "append": "mi.",
+                        "parent_repeater": "field_68b202a8ec6e1"
+                    },
+                    {
+                        "key": "field_68b2035bec6e4",
+                        "label": "Current Status",
+                        "name": "current_status",
+                        "aria-label": "",
+                        "type": "select",
+                        "instructions": "",
+                        "required": 0,
+                        "conditional_logic": 0,
+                        "wrapper": {
+                            "width": "",
+                            "class": "",
+                            "id": ""
+                        },
+                        "choices": {
+                            "safe": "Safe",
+                            "caution": "Caution",
+                            "avoid": "Avoid",
+                            "no_data": "No Data"
+                        },
+                        "default_value": false,
+                        "return_format": "label",
+                        "multiple": 0,
+                        "allow_null": 0,
+                        "allow_in_bindings": 1,
+                        "ui": 0,
+                        "ajax": 0,
+                        "placeholder": "",
+                        "create_options": 0,
+                        "save_options": 0,
+                        "parent_repeater": "field_68b202a8ec6e1"
+                    },
+                    {
+                        "key": "field_68b20438ec6e5",
+                        "label": "Status Color",
+                        "name": "status_color",
+                        "aria-label": "",
+                        "type": "color_picker",
+                        "instructions": "",
+                        "required": 0,
+                        "conditional_logic": 0,
+                        "wrapper": {
+                            "width": "",
+                            "class": "",
+                            "id": ""
+                        },
+                        "default_value": "#6c757d",
+                        "enable_opacity": 0,
+                        "return_format": "string",
+                        "allow_in_bindings": 1,
+                        "parent_repeater": "field_68b202a8ec6e1"
+                    },
+                    {
+                        "key": "field_68b2046cec6e6",
+                        "label": "Description",
+                        "name": "description",
+                        "aria-label": "",
+                        "type": "textarea",
+                        "instructions": "",
+                        "required": 0,
+                        "conditional_logic": 0,
+                        "wrapper": {
+                            "width": "",
+                            "class": "",
+                            "id": ""
+                        },
+                        "default_value": "",
+                        "maxlength": "",
+                        "allow_in_bindings": 1,
+                        "rows": 2,
+                        "placeholder": "",
+                        "new_lines": "",
+                        "parent_repeater": "field_68b202a8ec6e1"
+                    }
+                ]
+            },
+            {
+                "key": "field_68b2049f6b328",
+                "label": "Nearby Beaches",
+                "name": "nearby_beaches",
+                "aria-label": "",
+                "type": "repeater",
+                "instructions": "",
+                "required": 0,
+                "conditional_logic": 0,
+                "wrapper": {
+                    "width": "",
+                    "class": "",
+                    "id": ""
+                },
+                "layout": "table",
+                "pagination": 0,
+                "min": 0,
+                "max": 0,
+                "collapsed": "",
+                "button_label": "Add Row",
+                "rows_per_page": 20,
+                "sub_fields": [
+                    {
+                        "key": "field_68b2049f6b32d",
+                        "label": "Beach",
+                        "name": "beach",
+                        "aria-label": "",
+                        "type": "post_object",
+                        "instructions": "",
+                        "required": 0,
+                        "conditional_logic": 0,
+                        "wrapper": {
+                            "width": "",
+                            "class": "",
+                            "id": ""
+                        },
+                        "post_type": [
+                            "beach"
+                        ],
+                        "post_status": [
+                            "publish"
+                        ],
+                        "taxonomy": "",
+                        "return_format": "",
+                        "multiple": 0,
+                        "allow_null": 0,
+                        "allow_in_bindings": 1,
+                        "bidirectional": 0,
+                        "ui": 1,
+                        "bidirectional_target": [],
+                        "parent_repeater": "field_68b2049f6b328"
+                    },
+                    {
+                        "key": "field_68b2049f6b32e",
+                        "label": "Distance",
+                        "name": "distance",
+                        "aria-label": "",
+                        "type": "number",
+                        "instructions": "",
+                        "required": 0,
+                        "conditional_logic": 0,
+                        "wrapper": {
+                            "width": "",
+                            "class": "",
+                            "id": ""
+                        },
+                        "default_value": "",
+                        "min": "",
+                        "max": "",
+                        "allow_in_bindings": 1,
+                        "placeholder": "",
+                        "step": "",
+                        "prepend": "",
+                        "append": "mi.",
+                        "parent_repeater": "field_68b2049f6b328"
+                    },
+                    {
+                        "key": "field_68b2049f6b32f",
+                        "label": "Current Status",
+                        "name": "current_status",
+                        "aria-label": "",
+                        "type": "select",
+                        "instructions": "",
+                        "required": 0,
+                        "conditional_logic": 0,
+                        "wrapper": {
+                            "width": "",
+                            "class": "",
+                            "id": ""
+                        },
+                        "choices": {
+                            "safe": "Safe",
+                            "caution": "Caution",
+                            "avoid": "Avoid",
+                            "no_data": "No Data"
+                        },
+                        "default_value": false,
+                        "return_format": "label",
+                        "multiple": 0,
+                        "allow_null": 0,
+                        "allow_in_bindings": 1,
+                        "ui": 0,
+                        "ajax": 0,
+                        "placeholder": "",
+                        "create_options": 0,
+                        "save_options": 0,
+                        "parent_repeater": "field_68b2049f6b328"
+                    },
+                    {
+                        "key": "field_68b2049f6b330",
+                        "label": "Status Color",
+                        "name": "status_color",
+                        "aria-label": "",
+                        "type": "color_picker",
+                        "instructions": "",
+                        "required": 0,
+                        "conditional_logic": 0,
+                        "wrapper": {
+                            "width": "",
+                            "class": "",
+                            "id": ""
+                        },
+                        "default_value": "#6c757d",
+                        "enable_opacity": 0,
+                        "return_format": "string",
+                        "allow_in_bindings": 1,
+                        "parent_repeater": "field_68b2049f6b328"
+                    },
+                    {
+                        "key": "field_68b2049f6b331",
+                        "label": "Description",
+                        "name": "description",
+                        "aria-label": "",
+                        "type": "textarea",
+                        "instructions": "",
+                        "required": 0,
+                        "conditional_logic": 0,
+                        "wrapper": {
+                            "width": "",
+                            "class": "",
+                            "id": ""
+                        },
+                        "default_value": "",
+                        "maxlength": "",
+                        "allow_in_bindings": 1,
+                        "rows": 2,
+                        "placeholder": "",
+                        "new_lines": "",
+                        "parent_repeater": "field_68b2049f6b328"
+                    }
+                ]
+            }
+        ],
+        "location": [
+            [
+                {
+                    "param": "post_type",
+                    "operator": "==",
+                    "value": "city"
+                }
+            ]
+        ],
+        "menu_order": 0,
+        "position": "normal",
+        "style": "default",
+        "label_placement": "top",
+        "instruction_placement": "label",
+        "hide_on_screen": "",
+        "active": true,
+        "description": "",
+        "show_in_rest": 0
+    },
+    {
+        "key": "group_red_tide_core",
+        "title": "Red Tide Core Information",
+        "fields": [
+            {
+                "key": "field_rt_current_status",
+                "label": "Current Status",
+                "name": "current_status",
+                "aria-label": "",
+                "type": "select",
+                "instructions": "Current red tide status",
+                "required": 1,
+                "conditional_logic": 0,
+                "wrapper": {
+                    "width": "25",
+                    "class": "",
+                    "id": ""
+                },
+                "choices": {
+                    "safe": "Safe",
+                    "caution": "Caution",
+                    "avoid": "Avoid",
+                    "no_data": "No Data"
+                },
+                "default_value": "no_data",
+                "return_format": "value",
+                "multiple": 0,
+                "allow_null": 0,
+                "allow_in_bindings": 1,
+                "ui": 0,
+                "ajax": 0,
+                "placeholder": "",
+                "create_options": 0,
+                "save_options": 0
+            },
+            {
+                "key": "field_rt_status_color",
+                "label": "Status Color",
+                "name": "status_color",
+                "aria-label": "",
+                "type": "color_picker",
+                "instructions": "Color associated with current status (auto-populated)",
+                "required": 0,
+                "conditional_logic": 0,
+                "wrapper": {
+                    "width": "25",
+                    "class": "",
+                    "id": ""
+                },
+                "default_value": "#6c757d",
+                "allow_in_bindings": 1,
+                "enable_opacity": 0,
+                "return_format": "string"
+            },
+            {
+                "key": "field_rt_last_updated",
+                "label": "Last Updated",
+                "name": "last_updated",
+                "aria-label": "",
+                "type": "date_time_picker",
+                "instructions": "When this data was last processed",
+                "required": 0,
+                "conditional_logic": 0,
+                "wrapper": {
+                    "width": "25",
+                    "class": "",
+                    "id": ""
+                },
+                "display_format": "M j, Y g:i A",
+                "return_format": "Y-m-d H:i:s",
+                "first_day": 1,
+                "allow_in_bindings": 1,
+                "default_to_current_date": 0
+            },
+            {
+                "key": "field_rt_slug",
+                "label": "URL Slug",
+                "name": "url_slug",
+                "aria-label": "",
+                "type": "text",
+                "instructions": "Auto-generated SEO-friendly URL",
+                "required": 0,
+                "conditional_logic": 0,
+                "wrapper": {
+                    "width": "25",
+                    "class": "",
+                    "id": ""
+                },
+                "default_value": "",
+                "maxlength": "",
+                "allow_in_bindings": 1,
+                "placeholder": "red-tide-location-name",
+                "prepend": "",
+                "append": "",
+                "readonly": 1
+            },
+            {
+                "key": "field_rt_region",
+                "label": "Region",
+                "name": "region",
+                "aria-label": "",
+                "type": "text",
+                "instructions": "Geographic region (e.g., Southwest Florida)",
+                "required": 1,
+                "conditional_logic": 0,
+                "wrapper": {
+                    "width": "33",
+                    "class": "",
+                    "id": ""
+                },
+                "default_value": "",
+                "maxlength": "",
+                "allow_in_bindings": 1,
+                "placeholder": "Southwest Florida",
+                "prepend": "",
+                "append": ""
+            },
+            {
+                "key": "field_rt_state",
+                "label": "State",
+                "name": "state",
+                "aria-label": "",
+                "type": "text",
+                "instructions": "",
+                "required": 0,
+                "conditional_logic": 0,
+                "wrapper": {
+                    "width": "33",
+                    "class": "",
+                    "id": ""
+                },
+                "default_value": "FL",
+                "maxlength": "",
+                "allow_in_bindings": 1,
+                "placeholder": "",
+                "prepend": "",
+                "append": ""
+            },
+            {
+                "key": "field_rt_featured_location",
+                "label": "Featured Location",
+                "name": "featured_location",
+                "aria-label": "",
+                "type": "true_false",
+                "instructions": "Show prominently on homepage and category pages",
+                "required": 0,
+                "conditional_logic": 0,
+                "wrapper": {
+                    "width": "33",
+                    "class": "",
+                    "id": ""
+                },
+                "message": "",
+                "default_value": 0,
+                "allow_in_bindings": 1,
+                "ui": 1,
+                "ui_on_text": "Featured",
+                "ui_off_text": "Standard"
+            },
+            {
+                "key": "field_68b0fa5b863cb",
+                "label": "Location Name",
+                "name": "location_name",
+                "aria-label": "",
+                "type": "text",
+                "instructions": "",
+                "required": 0,
+                "conditional_logic": 0,
+                "wrapper": {
+                    "width": "",
+                    "class": "",
+                    "id": ""
+                },
+                "default_value": "",
+                "maxlength": "",
+                "allow_in_bindings": 1,
+                "placeholder": "",
+                "prepend": "",
+                "append": ""
+            }
+        ],
+        "location": [
+            [
+                {
+                    "param": "post_type",
+                    "operator": "==",
+                    "value": "beach"
+                }
+            ],
+            [
+                {
+                    "param": "post_type",
+                    "operator": "==",
+                    "value": "city"
+                }
+            ],
+            [
+                {
+                    "param": "post_type",
+                    "operator": "==",
+                    "value": "region"
+                }
+            ]
+        ],
+        "menu_order": 0,
+        "position": "normal",
+        "style": "default",
+        "label_placement": "top",
+        "instruction_placement": "label",
+        "hide_on_screen": "",
+        "active": true,
+        "description": "Core fields shared across all red tide post types",
+        "show_in_rest": 1
+    },
+    {
+        "key": "group_red_tide_region",
+        "title": "Region Aggregate Data",
+        "fields": [
+            {
+                "key": "field_rt_region_peak_count",
+                "label": "Peak Cell Count",
+                "name": "peak_count",
+                "aria-label": "",
+                "type": "number",
+                "instructions": "Highest count across all region beaches",
+                "required": 0,
+                "conditional_logic": 0,
+                "wrapper": {
+                    "width": "25",
+                    "class": "",
+                    "id": ""
+                },
+                "default_value": 0,
+                "min": 0,
+                "max": "",
+                "allow_in_bindings": 1,
+                "placeholder": 50000,
+                "step": "",
+                "prepend": "",
+                "append": "cells\/L"
+            },
+            {
+                "key": "field_rt_region_avg_count",
+                "label": "Average Cell Count",
+                "name": "avg_count",
+                "aria-label": "",
+                "type": "number",
+                "instructions": "Average count across all region beaches",
+                "required": 0,
+                "conditional_logic": 0,
+                "wrapper": {
+                    "width": "25",
+                    "class": "",
+                    "id": ""
+                },
+                "default_value": 0,
+                "min": 0,
+                "max": "",
+                "allow_in_bindings": 1,
+                "placeholder": 15000,
+                "step": "",
+                "prepend": "",
+                "append": "cells\/L"
+            },
+            {
+                "key": "field_rt_region_confidence_score",
+                "label": "Average Confidence",
+                "name": "confidence_score",
+                "aria-label": "",
+                "type": "number",
+                "instructions": "Average confidence across all region beaches",
+                "required": 0,
+                "conditional_logic": 0,
+                "wrapper": {
+                    "width": "25",
+                    "class": "",
+                    "id": ""
+                },
+                "default_value": 0,
+                "min": 0,
+                "max": 100,
+                "allow_in_bindings": 1,
+                "placeholder": 80,
+                "step": "",
+                "prepend": "",
+                "append": "%"
+            },
+            {
+                "key": "field_rt_region_sample_date",
+                "label": "Latest Sample Date",
+                "name": "sample_date",
+                "aria-label": "",
+                "type": "date_picker",
+                "instructions": "Most recent sample date across all region beaches",
+                "required": 0,
+                "conditional_logic": 0,
+                "wrapper": {
+                    "width": "25",
+                    "class": "",
+                    "id": ""
+                },
+                "display_format": "M j, Y",
+                "return_format": "Y-m-d",
+                "first_day": 1,
+                "allow_in_bindings": 1,
+                "default_to_current_date": 0
+            },
+            {
+                "key": "field_rt_region_beach_count",
+                "label": "Total Beaches",
+                "name": "beach_count",
+                "aria-label": "",
+                "type": "number",
+                "instructions": "Number of beaches monitored in this region",
+                "required": 0,
+                "conditional_logic": 0,
+                "wrapper": {
+                    "width": "20",
+                    "class": "",
+                    "id": ""
+                },
+                "default_value": 0,
+                "min": 0,
+                "max": "",
+                "allow_in_bindings": 1,
+                "placeholder": 12,
+                "step": "",
+                "prepend": "",
+                "append": "beaches"
+            },
+            {
+                "key": "field_rt_region_city_count",
+                "label": "Total Cities",
+                "name": "city_count",
+                "aria-label": "",
+                "type": "number",
+                "instructions": "Number of cities in this region",
+                "required": 0,
+                "conditional_logic": 0,
+                "wrapper": {
+                    "width": "20",
+                    "class": "",
+                    "id": ""
+                },
+                "default_value": 0,
+                "min": 0,
+                "max": "",
+                "allow_in_bindings": 1,
+                "placeholder": 4,
+                "step": "",
+                "prepend": "",
+                "append": "cities"
+            },
+            {
+                "key": "field_rt_region_beaches_safe",
+                "label": "Beaches - Safe",
+                "name": "beaches_safe",
+                "aria-label": "",
+                "type": "number",
+                "instructions": "Number of beaches with safe status",
+                "required": 0,
+                "conditional_logic": 0,
+                "wrapper": {
+                    "width": "20",
+                    "class": "",
+                    "id": ""
+                },
+                "default_value": 0,
+                "min": 0,
+                "max": "",
+                "allow_in_bindings": 1,
+                "placeholder": 8,
+                "step": "",
+                "prepend": "",
+                "append": ""
+            },
+            {
+                "key": "field_rt_region_beaches_caution",
+                "label": "Beaches - Caution",
+                "name": "beaches_caution",
+                "aria-label": "",
+                "type": "number",
+                "instructions": "Number of beaches with caution status",
+                "required": 0,
+                "conditional_logic": 0,
+                "wrapper": {
+                    "width": "20",
+                    "class": "",
+                    "id": ""
+                },
+                "default_value": 0,
+                "min": 0,
+                "max": "",
+                "allow_in_bindings": 1,
+                "placeholder": 3,
+                "step": "",
+                "prepend": "",
+                "append": ""
+            },
+            {
+                "key": "field_rt_region_beaches_avoid",
+                "label": "Beaches - Avoid",
+                "name": "beaches_avoid",
+                "aria-label": "",
+                "type": "number",
+                "instructions": "Number of beaches with avoid status",
+                "required": 0,
+                "conditional_logic": 0,
+                "wrapper": {
+                    "width": "20",
+                    "class": "",
+                    "id": ""
+                },
+                "default_value": 0,
+                "min": 0,
+                "max": "",
+                "allow_in_bindings": 1,
+                "placeholder": 1,
+                "step": "",
+                "prepend": "",
+                "append": ""
+            },
+            {
+                "key": "field_rt_region_child_cities",
+                "label": "Child Cities",
+                "name": "child_cities",
+                "aria-label": "",
+                "type": "post_object",
+                "instructions": "Cities located in this region",
+                "required": 0,
+                "conditional_logic": 0,
+                "wrapper": {
+                    "width": "50",
+                    "class": "",
+                    "id": ""
+                },
+                "post_type": [
+                    "city"
+                ],
+                "post_status": [
+                    "publish"
+                ],
+                "taxonomy": "",
+                "return_format": "object",
+                "multiple": 1,
+                "allow_null": 1,
+                "bidirectional": 0,
+                "ui": 1,
+                "bidirectional_target": []
+            },
+            {
+                "key": "field_rt_region_child_beaches",
+                "label": "Child Beaches",
+                "name": "child_beaches",
+                "aria-label": "",
+                "type": "post_object",
+                "instructions": "All beaches in this region",
+                "required": 0,
+                "conditional_logic": 0,
+                "wrapper": {
+                    "width": "50",
+                    "class": "",
+                    "id": ""
+                },
+                "post_type": [
+                    "beach"
+                ],
+                "post_status": [
+                    "publish"
+                ],
+                "taxonomy": "",
+                "return_format": "object",
+                "multiple": 1,
+                "allow_null": 1,
+                "bidirectional": 0,
+                "ui": 1,
+                "bidirectional_target": []
+            },
+            {
+                "key": "field_rt_region_description",
+                "label": "Region Description",
+                "name": "region_description",
+                "aria-label": "",
+                "type": "textarea",
+                "instructions": "Brief description of this region for SEO and user information",
+                "required": 0,
+                "conditional_logic": 0,
+                "wrapper": {
+                    "width": "",
+                    "class": "",
+                    "id": ""
+                },
+                "default_value": "",
+                "maxlength": "",
+                "allow_in_bindings": 1,
+                "rows": 3,
+                "placeholder": "Southwest Florida is the primary region affected by red tide blooms, encompassing popular destinations like Sarasota, Fort Myers, and Naples.",
+                "new_lines": ""
+            },
+            {
+                "key": "field_68b204e973edc",
+                "label": "Nearby Regions",
+                "name": "nearby_regions",
+                "aria-label": "",
+                "type": "repeater",
+                "instructions": "",
+                "required": 0,
+                "conditional_logic": 0,
+                "wrapper": {
+                    "width": "",
+                    "class": "",
+                    "id": ""
+                },
+                "layout": "table",
+                "pagination": 0,
+                "min": 0,
+                "max": 0,
+                "collapsed": "",
+                "button_label": "Add Row",
+                "rows_per_page": 20,
+                "sub_fields": [
+                    {
+                        "key": "field_68b204e973ee1",
+                        "label": "Region",
+                        "name": "region",
+                        "aria-label": "",
+                        "type": "post_object",
+                        "instructions": "",
+                        "required": 0,
+                        "conditional_logic": 0,
+                        "wrapper": {
+                            "width": "",
+                            "class": "",
+                            "id": ""
+                        },
+                        "post_type": [
+                            "region"
+                        ],
+                        "post_status": [
+                            "publish"
+                        ],
+                        "taxonomy": "",
+                        "return_format": "object",
+                        "multiple": 0,
+                        "allow_null": 0,
+                        "allow_in_bindings": 1,
+                        "bidirectional": 0,
+                        "ui": 1,
+                        "bidirectional_target": [],
+                        "parent_repeater": "field_68b204e973edc"
+                    },
+                    {
+                        "key": "field_68b204e973ee2",
+                        "label": "Distance",
+                        "name": "distance",
+                        "aria-label": "",
+                        "type": "number",
+                        "instructions": "",
+                        "required": 0,
+                        "conditional_logic": 0,
+                        "wrapper": {
+                            "width": "",
+                            "class": "",
+                            "id": ""
+                        },
+                        "default_value": "",
+                        "min": "",
+                        "max": "",
+                        "allow_in_bindings": 1,
+                        "placeholder": "",
+                        "step": "",
+                        "prepend": "",
+                        "append": "mi.",
+                        "parent_repeater": "field_68b204e973edc"
+                    },
+                    {
+                        "key": "field_68b204e973ee3",
+                        "label": "Current Status",
+                        "name": "current_status",
+                        "aria-label": "",
+                        "type": "select",
+                        "instructions": "",
+                        "required": 0,
+                        "conditional_logic": 0,
+                        "wrapper": {
+                            "width": "",
+                            "class": "",
+                            "id": ""
+                        },
+                        "choices": {
+                            "safe": "Safe",
+                            "caution": "Caution",
+                            "avoid": "Avoid",
+                            "no_data": "No Data"
+                        },
+                        "default_value": false,
+                        "return_format": "label",
+                        "multiple": 0,
+                        "allow_null": 0,
+                        "allow_in_bindings": 1,
+                        "ui": 0,
+                        "ajax": 0,
+                        "placeholder": "",
+                        "create_options": 0,
+                        "save_options": 0,
+                        "parent_repeater": "field_68b204e973edc"
+                    },
+                    {
+                        "key": "field_68b204e973ee4",
+                        "label": "Status Color",
+                        "name": "status_color",
+                        "aria-label": "",
+                        "type": "color_picker",
+                        "instructions": "",
+                        "required": 0,
+                        "conditional_logic": 0,
+                        "wrapper": {
+                            "width": "",
+                            "class": "",
+                            "id": ""
+                        },
+                        "default_value": "#6c757d",
+                        "enable_opacity": 0,
+                        "return_format": "string",
+                        "allow_in_bindings": 1,
+                        "parent_repeater": "field_68b204e973edc"
+                    },
+                    {
+                        "key": "field_68b204e973ee5",
+                        "label": "Description",
+                        "name": "description",
+                        "aria-label": "",
+                        "type": "textarea",
+                        "instructions": "",
+                        "required": 0,
+                        "conditional_logic": 0,
+                        "wrapper": {
+                            "width": "",
+                            "class": "",
+                            "id": ""
+                        },
+                        "default_value": "",
+                        "maxlength": "",
+                        "allow_in_bindings": 1,
+                        "rows": 2,
+                        "placeholder": "",
+                        "new_lines": "",
+                        "parent_repeater": "field_68b204e973edc"
+                    }
+                ]
+            }
+        ],
+        "location": [
+            [
+                {
+                    "param": "post_type",
+                    "operator": "==",
+                    "value": "region"
+                }
+            ]
+        ],
+        "menu_order": 0,
+        "position": "normal",
+        "style": "default",
+        "label_placement": "top",
+        "instruction_placement": "label",
+        "hide_on_screen": "",
+        "active": true,
+        "description": "Aggregate data fields for region-level red tide monitoring",
+        "show_in_rest": 1
+    }
+]

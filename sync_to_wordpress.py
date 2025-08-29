@@ -8,6 +8,7 @@ import requests
 import json
 import os
 import time
+import re
 from datetime import datetime
 import pytz
 import gspread
@@ -502,6 +503,13 @@ class WordPressSyncer:
             # Load additional beach data from locations sheet
             beach_location_data = self._get_beach_location_data(location_name)
             
+            # Get HAB sampling sites for this beach
+            beach_sampling_sites = self._get_beach_sampling_sites(location_name)
+            
+            # Get parent city and region post IDs
+            parent_city_id = self._find_parent_post_id(data.get('city', ''), 'city')
+            parent_region_id = self._find_parent_post_id(data.get('region', ''), 'region')
+            
             acf_data.update({
                 'city': data.get('city', '') or None,
                 'coordinates': beach_location_data.get('coordinates', '') or None,
@@ -509,10 +517,25 @@ class WordPressSyncer:
                 'zip_code': beach_location_data.get('zip', '') or None,
                 'peak_count': int(data.get('peak_count', 0)),
                 'confidence_score': int(data.get('confidence_score', 0)),
-                'sample_date': data.get('sample_date', '') or None
+                'sample_date': data.get('sample_date', '') or None,
+                'parent_city_post': parent_city_id,
+                'parent_region_post': parent_region_id,
+                'sampling_sites': beach_sampling_sites,
+                'beach_description': self._generate_beach_description(location_name, data),
+                'nearby_beaches': self._get_nearby_beaches(location_name, data.get('region', '')),
+                'nearby_regions': self._get_nearby_regions(data.get('region', ''))
             })
             
-        elif post_type in ['city', 'region']:
+        elif post_type == 'city':
+            # Get HAB sampling sites for this city
+            hab_sites = self._get_city_hab_sampling_sites(location_name)
+            
+            # Get parent region post ID
+            parent_region_id = self._find_parent_post_id(data.get('region', ''), 'region')
+            
+            # Get child beach post IDs
+            child_beach_ids = self._find_child_post_ids(location_name, 'beach')
+            
             acf_data.update({
                 'peak_count': int(data.get('peak_count', 0)),
                 'avg_count': int(data.get('avg_count', 0)),
@@ -521,64 +544,51 @@ class WordPressSyncer:
                 'beach_count': int(data.get('beach_count', 0)),
                 'beaches_safe': int(data.get('beaches_safe', 0)),
                 'beaches_caution': int(data.get('beaches_caution', 0)),
-                'beaches_avoid': int(data.get('beaches_avoid', 0))
+                'beaches_avoid': int(data.get('beaches_avoid', 0)),
+                'child_beaches': child_beach_ids,
+                'parent_region': parent_region_id,
+                'peak_cell_count': int(data.get('peak_count', 0)),
+                'average_cell_count': int(data.get('avg_count', 0)),
+                'average_confidence': int(data.get('confidence_score', 0)),
+                'latest_sample_data': data.get('sample_date', '') or None,
+                'total_beaches': int(data.get('beach_count', 0)),
+                'city_description': self._generate_city_description(location_name, data),
+                'nearby_cities': self._get_nearby_cities(location_name, data.get('region', '')),
+                'nearby_beaches': self._get_nearby_beaches_for_city(location_name, data.get('region', ''))
             })
             
-            if post_type == 'city':
-                # Add city-specific ACF fields
-                hab_sites = self._get_city_hab_sampling_sites(location_name)
-                acf_data.update({
-                    'parent_city': data.get('city', '') or None,  # Self-reference
-                    'parent_region': data.get('region', '') or None,
-                    'hab_sampling_sites': hab_sites
-                })
-                
-                # Debug: Print city ACF data
-                print(f"   🔍 City ACF data for {location_name}:")
-                print(f"      - parent_city: {acf_data.get('parent_city', 'N/A')}")
-                print(f"      - parent_region: {acf_data.get('parent_region', 'N/A')}")
-                print(f"      - hab_sampling_sites count: {len(hab_sites)}")
-                for i, site in enumerate(hab_sites[:3]):  # Show first 3 sites
-                    print(f"        Site {i+1}: {site.get('hab_id', 'N/A')} - {site.get('sample_location', 'N/A')}")
+        elif post_type == 'region':
+            # Get child post IDs
+            child_beach_ids = self._find_child_post_ids(location_name, 'beach')
+            child_city_ids = self._find_child_post_ids(location_name, 'city')
             
-            if post_type == 'region':
-                acf_data.update({
-                    'city_count': int(data.get('city_count', 0)),
-                    'total_beaches': int(data.get('beach_count', 0)),  # Alternative field name
-                    'total_cities': int(data.get('city_count', 0)),    # Alternative field name
-                    'beach_count': int(data.get('beach_count', 0)),
-                    'city_count': int(data.get('city_count', 0))
-                })
-                
-                # Handle relationship fields based on configuration
-                if self.use_relationship_fields:
-                    # Get related post IDs for relationship fields
-                    region_name = data.get('location_name', '')
-                    child_beach_ids = self._find_related_post_ids(region_name, 'beach')
-                    child_city_ids = self._find_related_post_ids(region_name, 'city')
-                    
-                    acf_data.update({
-                        'child_beaches': child_beach_ids,
-                        'child_cities': child_city_ids
-                    })
-                    
-                    # Debug: Print relationship data
-                    print(f"      - child_beaches (IDs): {child_beach_ids}")
-                    print(f"      - child_cities (IDs): {child_city_ids}")
-                else:
-                    print(f"      - child_beaches: disabled (using count fields)")
-                    print(f"      - child_cities: disabled (using count fields)")
-                
-                # Debug: Print region ACF data
-                print(f"   🔍 Region ACF data for {location_name}:")
-                print(f"      - beach_count: {acf_data.get('beach_count', 'N/A')}")
-                print(f"      - city_count: {acf_data.get('city_count', 'N/A')}")
-                print(f"      - beaches_safe: {acf_data.get('beaches_safe', 'N/A')}")
-                print(f"      - beaches_caution: {acf_data.get('beaches_caution', 'N/A')}")
-                print(f"      - beaches_avoid: {acf_data.get('beaches_avoid', 'N/A')}")
-                print(f"      - total_beaches: {acf_data.get('total_beaches', 'N/A')}")
-                print(f"      - total_cities: {acf_data.get('total_cities', 'N/A')}")
-                # Note: child_beaches and child_cities are relationship fields, using count fields instead
+            acf_data.update({
+                'peak_count': int(data.get('peak_count', 0)),
+                'avg_count': int(data.get('avg_count', 0)),
+                'confidence_score': int(data.get('confidence_score', 0)),
+                'sample_date': data.get('sample_date', '') or None,
+                'beach_count': int(data.get('beach_count', 0)),
+                'beaches_safe': int(data.get('beaches_safe', 0)),
+                'beaches_caution': int(data.get('beaches_caution', 0)),
+                'beaches_avoid': int(data.get('beaches_avoid', 0)),
+                'city_count': int(data.get('city_count', 0)),
+                'total_beaches': int(data.get('beach_count', 0)),
+                'total_cities': int(data.get('city_count', 0)),
+                'child_beaches': child_beach_ids,
+                'child_cities': child_city_ids,
+                'region_description': self._generate_region_description(location_name, data),
+                'nearby_regions': self._get_nearby_regions(location_name)
+            })
+            
+            # Debug: Print region ACF data
+            print(f"   🔍 Region ACF data for {location_name}:")
+            print(f"      - beach_count: {acf_data.get('beach_count', 'N/A')}")
+            print(f"      - city_count: {acf_data.get('city_count', 'N/A')}")
+            print(f"      - beaches_safe: {acf_data.get('beaches_safe', 'N/A')}")
+            print(f"      - beaches_caution: {acf_data.get('beaches_caution', 'N/A')}")
+            print(f"      - beaches_avoid: {acf_data.get('beaches_avoid', 'N/A')}")
+            print(f"      - child_beaches (IDs): {child_beach_ids}")
+            print(f"      - child_cities (IDs): {child_city_ids}")
         
         # WordPress post payload
         post_payload = {
@@ -672,6 +682,329 @@ class WordPressSyncer:
             
         except Exception as e:
             print(f"   Warning: Could not load HAB sampling sites for {city_name}: {e}")
+            return []
+    
+    def _get_beach_sampling_sites(self, beach_name):
+        """Get HAB sampling sites for a specific beach"""
+        if self.wordpress_test_only:
+            # Return mock sampling sites for testing
+            return [
+                {
+                    'hab_id': f'TEST_HAB_{beach_name.upper().replace(" ", "_")}_001',
+                    'sample_location': f'{beach_name} - Main Beach',
+                    'distance_miles': '0.1',
+                    'current_concentration': '2500',
+                    'sample_date': '2025-01-15'
+                }
+            ]
+            
+        try:
+            sample_records = self._get_cached_sheet_data('sample_mapping')
+            
+            sampling_sites = []
+            for record in sample_records:
+                if record.get('beach', '') == beach_name:
+                    sampling_sites.append({
+                        'hab_id': record.get('HAB_id', ''),
+                        'sample_location': record.get('sample_location', ''),
+                        'distance_miles': str(record.get('sample_distance', 0)),
+                        'current_concentration': str(record.get('cell_count', 0)),
+                        'sample_date': record.get('sample_date', '')
+                    })
+            
+            return sampling_sites
+            
+        except Exception as e:
+            print(f"   Warning: Could not load sampling sites for {beach_name}: {e}")
+            return []
+    
+    def _find_parent_post_id(self, parent_name, post_type):
+        """Find post ID for parent city or region"""
+        if not parent_name:
+            return None
+            
+        try:
+            # Search for existing post by name
+            search_slug = f"{parent_name.lower().replace(' ', '-')}-red-tide"
+            existing_post = self.find_existing_post(search_slug, post_type)
+            return existing_post['id'] if existing_post else None
+        except Exception as e:
+            print(f"   Warning: Could not find parent {post_type} ID for {parent_name}: {e}")
+            return None
+    
+    def _find_child_post_ids(self, parent_name, child_type):
+        """Find post IDs for child beaches or cities in a parent region/city"""
+        try:
+            # Get the beach_status data to find related posts
+            beach_status_records = self._get_cached_sheet_data('beach_status')
+            
+            child_ids = []
+            for record in beach_status_records:
+                record_parent = record.get('region' if child_type == 'beach' else 'city', '')
+                record_type = record.get('location_type', '').lower()
+                
+                # Match parent and child type
+                if record_parent == parent_name and record_type == child_type:
+                    # Try to find the WordPress post ID for this location
+                    location_name = record.get('location_name', '')
+                    if location_name:
+                        # Search for existing post
+                        search_slug = f"{location_name.lower().replace(' ', '-')}-red-tide"
+                        existing_post = self.find_existing_post(search_slug, child_type)
+                        if existing_post:
+                            child_ids.append(existing_post['id'])
+            
+            return child_ids
+            
+        except Exception as e:
+            print(f"   Warning: Could not find child {child_type} IDs for {parent_name}: {e}")
+            return []
+    
+    def _generate_beach_description(self, beach_name, data):
+        """Generate a description for a beach"""
+        status = data.get('current_status', 'no_data')
+        peak_count = data.get('peak_count', 0)
+        city = data.get('city', '')
+        
+        if status == 'safe':
+            return f"{beach_name} in {city}, Florida currently has safe red tide conditions with low cell counts ({peak_count} cells/L). The beach is open for swimming and recreation."
+        elif status == 'caution':
+            return f"{beach_name} in {city}, Florida is experiencing moderate red tide conditions ({peak_count} cells/L). Visitors should exercise caution and check for any posted advisories."
+        elif status == 'avoid':
+            return f"{beach_name} in {city}, Florida has high red tide levels ({peak_count} cells/L). Swimming and water activities are not recommended at this time."
+        else:
+            return f"{beach_name} in {city}, Florida. Current red tide monitoring data is being collected to assess conditions."
+    
+    def _generate_city_description(self, city_name, data):
+        """Generate a description for a city"""
+        status = data.get('current_status', 'no_data')
+        beach_count = data.get('beach_count', 0)
+        region = data.get('region', '')
+        
+        if status == 'safe':
+            return f"{city_name} in {region}, Florida has {beach_count} monitored beaches, all currently showing safe red tide conditions. The area is open for beach activities."
+        elif status == 'caution':
+            return f"{city_name} in {region}, Florida has {beach_count} monitored beaches with some showing moderate red tide conditions. Check individual beach status before visiting."
+        elif status == 'avoid':
+            return f"{city_name} in {region}, Florida has {beach_count} monitored beaches with high red tide levels. Beach activities are not recommended at this time."
+        else:
+            return f"{city_name} in {region}, Florida has {beach_count} monitored beaches. Current red tide monitoring data is being collected."
+    
+    def _generate_region_description(self, region_name, data):
+        """Generate a description for a region"""
+        status = data.get('current_status', 'no_data')
+        beach_count = data.get('beach_count', 0)
+        city_count = data.get('city_count', 0)
+        
+        if status == 'safe':
+            return f"{region_name} region in Florida encompasses {city_count} cities and {beach_count} monitored beaches, all currently showing safe red tide conditions."
+        elif status == 'caution':
+            return f"{region_name} region in Florida encompasses {city_count} cities and {beach_count} monitored beaches with some areas showing moderate red tide conditions."
+        elif status == 'avoid':
+            return f"{region_name} region in Florida encompasses {city_count} cities and {beach_count} monitored beaches with high red tide levels affecting multiple areas."
+        else:
+            return f"{region_name} region in Florida encompasses {city_count} cities and {beach_count} monitored beaches. Comprehensive red tide monitoring is ongoing."
+    
+    def _get_nearby_beaches(self, beach_name, region_name):
+        """Get nearby beaches for a specific beach"""
+        if self.wordpress_test_only:
+            return [
+                {
+                    'beach': None,  # Will be populated with post object ID
+                    'distance': 2.5,
+                    'current_status': 'safe',
+                    'status_color': '#28a745',
+                    'description': 'Nearby beach with safe conditions'
+                }
+            ]
+            
+        try:
+            beach_status_records = self._get_cached_sheet_data('beach_status')
+            
+            nearby_beaches = []
+            for record in beach_status_records:
+                record_name = record.get('location_name', '')
+                record_type = record.get('location_type', '').lower()
+                record_region = record.get('region', '')
+                
+                # Find other beaches in the same region
+                if (record_type == 'beach' and 
+                    record_name != beach_name and 
+                    record_region == region_name):
+                    
+                    # Try to find the WordPress post ID
+                    search_slug = f"{record_name.lower().replace(' ', '-')}-red-tide"
+                    existing_post = self.find_existing_post(search_slug, 'beach')
+                    
+                    nearby_beaches.append({
+                        'beach': existing_post['id'] if existing_post else None,
+                        'distance': 2.5,  # Mock distance
+                        'current_status': record.get('current_status', 'no_data'),
+                        'status_color': self.get_status_color(record.get('current_status', 'no_data')),
+                        'description': f"{record_name} - {record.get('current_status', 'no_data')} conditions"
+                    })
+                    
+                    # Limit to 5 nearby beaches
+                    if len(nearby_beaches) >= 5:
+                        break
+            
+            return nearby_beaches
+            
+        except Exception as e:
+            print(f"   Warning: Could not get nearby beaches for {beach_name}: {e}")
+            return []
+    
+    def _get_nearby_beaches_for_city(self, city_name, region_name):
+        """Get nearby beaches for a city (different from beach nearby beaches)"""
+        if self.wordpress_test_only:
+            return [
+                {
+                    'beach': None,
+                    'distance': 1.5,
+                    'current_status': 'safe',
+                    'status_color': '#28a745',
+                    'description': 'Popular beach in the area'
+                }
+            ]
+            
+        try:
+            beach_status_records = self._get_cached_sheet_data('beach_status')
+            
+            nearby_beaches = []
+            for record in beach_status_records:
+                record_name = record.get('location_name', '')
+                record_type = record.get('location_type', '').lower()
+                record_city = record.get('city', '')
+                
+                # Find beaches in the same city
+                if (record_type == 'beach' and 
+                    record_city == city_name):
+                    
+                    # Try to find the WordPress post ID
+                    search_slug = f"{record_name.lower().replace(' ', '-')}-red-tide"
+                    existing_post = self.find_existing_post(search_slug, 'beach')
+                    
+                    nearby_beaches.append({
+                        'beach': existing_post['id'] if existing_post else None,
+                        'distance': 1.5,  # Mock distance
+                        'current_status': record.get('current_status', 'no_data'),
+                        'status_color': self.get_status_color(record.get('current_status', 'no_data')),
+                        'description': f"{record_name} - {record.get('current_status', 'no_data')} conditions"
+                    })
+                    
+                    # Limit to 8 nearby beaches
+                    if len(nearby_beaches) >= 8:
+                        break
+            
+            return nearby_beaches
+            
+        except Exception as e:
+            print(f"   Warning: Could not get nearby beaches for city {city_name}: {e}")
+            return []
+    
+    def _get_nearby_cities(self, city_name, region_name):
+        """Get nearby cities for a specific city"""
+        if self.wordpress_test_only:
+            return [
+                {
+                    'city': None,
+                    'distance': 15.0,
+                    'current_status': 'caution',
+                    'status_color': '#ffc107',
+                    'description': 'Nearby city with moderate conditions'
+                }
+            ]
+            
+        try:
+            beach_status_records = self._get_cached_sheet_data('beach_status')
+            
+            # Get unique cities in the same region
+            cities_in_region = set()
+            for record in beach_status_records:
+                record_city = record.get('city', '')
+                record_region = record.get('region', '')
+                record_type = record.get('location_type', '').lower()
+                
+                if record_type == 'city' and record_region == region_name and record_city != city_name:
+                    cities_in_region.add(record_city)
+            
+            nearby_cities = []
+            for city in list(cities_in_region)[:5]:  # Limit to 5 nearby cities
+                # Try to find the WordPress post ID
+                search_slug = f"{city.lower().replace(' ', '-')}-red-tide"
+                existing_post = self.find_existing_post(search_slug, 'city')
+                
+                # Get city status from records
+                city_status = 'no_data'
+                for record in beach_status_records:
+                    if (record.get('location_name', '') == city and 
+                        record.get('location_type', '').lower() == 'city'):
+                        city_status = record.get('current_status', 'no_data')
+                        break
+                
+                nearby_cities.append({
+                    'city': existing_post['id'] if existing_post else None,
+                    'distance': 15.0,  # Mock distance
+                    'current_status': city_status,
+                    'status_color': self.get_status_color(city_status),
+                    'description': f"{city} - {city_status} conditions"
+                })
+            
+            return nearby_cities
+            
+        except Exception as e:
+            print(f"   Warning: Could not get nearby cities for {city_name}: {e}")
+            return []
+    
+    def _get_nearby_regions(self, region_name):
+        """Get nearby regions for a specific region"""
+        if self.wordpress_test_only:
+            return [
+                {
+                    'region': None,
+                    'distance': 50.0,
+                    'current_status': 'safe',
+                    'status_color': '#28a745',
+                    'description': 'Adjacent region with safe conditions'
+                }
+            ]
+            
+        try:
+            beach_status_records = self._get_cached_sheet_data('beach_status')
+            
+            # Get unique regions
+            all_regions = set()
+            for record in beach_status_records:
+                record_region = record.get('region', '')
+                if record_region and record_region != region_name:
+                    all_regions.add(record_region)
+            
+            nearby_regions = []
+            for region in list(all_regions)[:3]:  # Limit to 3 nearby regions
+                # Try to find the WordPress post ID
+                search_slug = f"{region.lower().replace(' ', '-')}-red-tide"
+                existing_post = self.find_existing_post(search_slug, 'region')
+                
+                # Get region status from records
+                region_status = 'no_data'
+                for record in beach_status_records:
+                    if (record.get('location_name', '') == region and 
+                        record.get('location_type', '').lower() == 'region'):
+                        region_status = record.get('current_status', 'no_data')
+                        break
+                
+                nearby_regions.append({
+                    'region': existing_post['id'] if existing_post else None,
+                    'distance': 50.0,  # Mock distance
+                    'current_status': region_status,
+                    'status_color': self.get_status_color(region_status),
+                    'description': f"{region} - {region_status} conditions"
+                })
+            
+            return nearby_regions
+            
+        except Exception as e:
+            print(f"   Warning: Could not get nearby regions for {region_name}: {e}")
             return []
     
     def sync_post_type(self, data_list, post_type):
