@@ -160,7 +160,30 @@ class WordPressSyncer:
             return data_by_type
             
         except Exception as e:
-            print(f"❌ Failed to load sheet data: {e}")
+            error_msg = str(e)
+            if "header row in the worksheet is not unique" in error_msg:
+                print(f"❌ Failed to load sheet data: {e}")
+                print("\n🔧 HEADER ISSUE DETECTED!")
+                print("   Your Google Sheet has duplicate column headers.")
+                print("   This usually happens when new columns are added incorrectly.")
+                print("\n📋 REQUIRED HEADERS (in exact order):")
+                required_headers = [
+                    'location_name', 'location_type', 'date', 'current_status',
+                    'peak_count', 'avg_count', 'confidence_score', 'sample_date', 'last_updated',
+                    'region', 'city', 'slug', 'beach_count', 'city_count', 
+                    'beaches_safe', 'beaches_caution', 'beaches_avoid'
+                ]
+                for i, header in enumerate(required_headers, 1):
+                    print(f"   {i:2d}. {header}")
+                print("\n🔧 MANUAL FIX:")
+                print("   1. Open your Google Sheet (beach_status worksheet)")
+                print("   2. Delete the current header row")
+                print("   3. Add a new header row with the exact headers above")
+                print("   4. Ensure NO duplicate column names exist")
+                print("   5. Make sure 'slug' column exists (not 'page slug')")
+                print("\n💡 Or run: python fix_sheet_headers.py for automated fix")
+            else:
+                print(f"❌ Failed to load sheet data: {e}")
             raise
     
     def _generate_mock_data(self):
