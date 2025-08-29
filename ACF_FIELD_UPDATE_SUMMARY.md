@@ -182,9 +182,69 @@ python sync_to_wordpress.py
 3. **Performance**: Initial sync may be slower due to relationship lookups
 4. **Data Quality**: Ensure Google Sheets data is complete for best results
 
+## Distance-Based Nearby Location Criteria
+
+### Updated Distance Calculations
+The script now uses proper geographic distance calculations for nearby locations:
+
+#### **Nearby Beaches**
+- **Criteria**: All beaches within **50 miles**
+- **Method**: Uses Haversine formula for accurate distance calculation
+- **Fallback**: Region-based filtering when coordinates unavailable
+- **Limit**: Up to 10 nearest beaches, sorted by distance
+
+#### **Nearby Cities**
+- **Criteria**: All cities within **100 miles**
+- **Method**: Uses Haversine formula for accurate distance calculation
+- **Fallback**: Region-based filtering when coordinates unavailable
+- **Limit**: Up to 8 nearest cities, sorted by distance
+
+#### **Nearby Regions**
+- **Criteria**: **All other regions** (no distance limit)
+- **Method**: Includes all regions except the current one
+- **Purpose**: Provides comprehensive regional context
+
+### Distance Calculation Features
+
+#### **Haversine Formula**
+- Accurate calculation of distances between geographic coordinates
+- Accounts for Earth's curvature
+- Returns distances in miles
+- Handles edge cases and coordinate validation
+
+#### **Coordinate Lookup**
+- Retrieves coordinates from the `locations` sheet
+- Supports beach, city, and region coordinate lookups
+- Graceful fallback when coordinates unavailable
+- Mock coordinates for test mode
+
+#### **Performance Optimization**
+- Caches coordinate data to minimize lookups
+- Efficient distance calculations
+- Sorts results by distance for optimal user experience
+
+### Example Distance Calculations
+
+```python
+# Beach to Beach: Within 50 miles
+beach1 = (27.265862, -82.552521)  # Sarasota
+beach2 = (26.461462, -81.949524)  # Fort Myers
+distance = 45.2 miles  # ✅ Included
+
+# City to City: Within 100 miles
+city1 = (27.265862, -82.552521)   # Sarasota
+city2 = (25.761680, -80.191790)   # Miami
+distance = 185.3 miles  # ❌ Excluded
+
+# Region to Region: All regions included
+region1 = "Southwest Florida"
+region2 = "Southeast Florida"
+distance = 200+ miles  # ✅ Included (no limit)
+```
+
 ## Future Enhancements
 
-1. **Distance Calculations**: Implement real distance calculations for nearby locations
+1. **Advanced Distance Features**: Add driving distance calculations
 2. **Image Support**: Add support for featured images and galleries
 3. **Advanced Filtering**: Add filtering options for relationship fields
 4. **Bulk Operations**: Optimize for large-scale data processing

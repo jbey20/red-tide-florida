@@ -9,10 +9,35 @@ import json
 import os
 import time
 import re
+import math
 from datetime import datetime
 import pytz
 import gspread
 from google.oauth2.service_account import Credentials
+from pathlib import Path
+
+# Load environment variables from .env file if it exists
+def load_env_file(env_file_path='.env'):
+    """Load environment variables from .env file"""
+    env_path = Path(env_file_path)
+    
+    if env_path.exists():
+        print(f"📁 Loading environment variables from {env_path}")
+        with open(env_path, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#') and '=' in line:
+                    key, value = line.split('=', 1)
+                    key = key.strip()
+                    value = value.strip()
+                    if (value.startswith('"') and value.endswith('"')) or \
+                       (value.startswith("'") and value.endswith("'")):
+                        value = value[1:-1]
+                    os.environ[key] = value
+        print("✅ Environment variables loaded")
+
+# Load environment variables
+load_env_file()
 
 class WordPressSyncer:
     def __init__(self):

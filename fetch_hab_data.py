@@ -13,6 +13,34 @@ from datetime import datetime, timedelta
 import pytz
 import gspread
 from google.oauth2.service_account import Credentials
+from pathlib import Path
+
+def load_env_file(env_file_path='.env'):
+    """Load environment variables from .env file"""
+    env_path = Path(env_file_path)
+    
+    if env_path.exists():
+        print(f"📁 Loading environment variables from {env_file_path}")
+        with open(env_path, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#') and '=' in line:
+                    key, value = line.split('=', 1)
+                    key = key.strip()
+                    value = value.strip()
+                    
+                    # Remove quotes if present
+                    if (value.startswith('"') and value.endswith('"')) or \
+                       (value.startswith("'") and value.endswith("'")):
+                        value = value[1:-1]
+                    
+                    os.environ[key] = value
+        print("✅ Environment variables loaded from .env file")
+    else:
+        print("⚠️  No .env file found, using system environment variables")
+
+# Load environment variables at module level
+load_env_file()
 
 class HABDataFetcher:
     def __init__(self):
@@ -116,8 +144,27 @@ class HABDataFetcher:
                 response.raise_for_status()
                 data = response.json()
                 
+                # Validate the response structure
+                if not isinstance(data, dict):
+                    print(f"❌ Unexpected API response type: {type(data)}")
+                    raise ValueError(f"API returned non-dict response: {type(data)}")
+                
                 features = data.get('features', [])
+                if not isinstance(features, list):
+                    print(f"❌ Unexpected features type: {type(features)}")
+                    print(f"API response keys: {list(data.keys())}")
+                    raise ValueError(f"API returned non-list features: {type(features)}")
+                
                 print(f"✅ Fetched {len(features)} HAB samples from FWC API")
+                
+                # Debug: Log response structure if no features found
+                if len(features) == 0:
+                    print(f"🔍 Debug: API response keys: {list(data.keys())}")
+                    if 'error' in data:
+                        print(f"🔍 Debug: API Error: {data['error']}")
+                        raise ValueError(f"FWC API service error: {data['error'].get('message', 'Unknown error')}")
+                    print(f"🔍 Debug: Full API response: {data}")
+                
                 return data
                 
             except requests.exceptions.Timeout as e:
@@ -284,10 +331,26 @@ class HABDataFetcher:
             
             # Find matching FWC data
             site_data = self._find_hab_data_by_id(fwc_data, hab_id, site['sample_location'])
+
             
             if site_data:
                 cell_count, status = self.parse_abundance_to_status(site_data['abundance'])
-                sample_date = datetime.fromtimestamp(site_data['sample_date'] / 1000)
+                
+                # Handle different date formats
+                sample_date_raw = site_data.get('sample_date')
+                if sample_date_raw:
+                    try:
+                        if isinstance(sample_date_raw, str):
+                            # Try to parse as timestamp string
+                            sample_date = datetime.fromtimestamp(float(sample_date_raw) / 1000)
+                        else:
+                            # Assume it's already a timestamp number
+                            sample_date = datetime.fromtimestamp(sample_date_raw / 1000)
+                    except (ValueError, TypeError):
+                        # If date parsing fails, use current date
+                        sample_date = datetime.now()
+                else:
+                    sample_date = datetime.now()
                 
                 # Update latest sample date
                 if not latest_sample_date or sample_date > latest_sample_date:
@@ -350,9 +413,19 @@ class HABDataFetcher:
     
     def _find_hab_data_by_id(self, fwc_data, hab_id, sample_location):
         """Find FWC data by HAB ID or location matching"""
+        # Check if fwc_data has the expected structure
+        if not fwc_data or 'features' not in fwc_data:
+            print(f"⚠️  FWC data missing 'features' key or is empty. Data structure: {list(fwc_data.keys()) if fwc_data else 'None'}")
+            return None
+        
+        features = fwc_data.get('features', [])
+        if not features:
+            print(f"⚠️  No features found in FWC data for {sample_location}")
+            return None
+        
         # Try exact HAB ID match first
-        for feature in fwc_data['features']:
-            attrs = feature['attributes']
+        for feature in features:
+            attrs = feature.get('attributes', {})
             if attrs.get('HAB_ID') == hab_id:
                 return {
                     'abundance': attrs.get('Abundance', 'No Data'),
@@ -365,14 +438,28 @@ class HABDataFetcher:
         best_match = None
         best_score = 0
         
-        for feature in fwc_data['features']:
-            attrs = feature['attributes']
+        for feature in features:
+            attrs = feature.get('attributes', {})
             location = attrs.get('LOCATION', '').lower()
             
             if sample_location_lower in location or location in sample_location_lower:
-                sample_date = datetime.fromtimestamp(attrs['SAMPLE_DATE'] / 1000)
-                age_days = (datetime.now() - sample_date).days
-                score = max(0, 10 - age_days)  # Prefer recent samples
+                # Handle different date formats
+                sample_date_raw = attrs.get('SAMPLE_DATE')
+                if sample_date_raw:
+                    try:
+                        if isinstance(sample_date_raw, str):
+                            # Try to parse as timestamp string
+                            sample_date = datetime.fromtimestamp(float(sample_date_raw) / 1000)
+                        else:
+                            # Assume it's already a timestamp number
+                            sample_date = datetime.fromtimestamp(sample_date_raw / 1000)
+                        age_days = (datetime.now() - sample_date).days
+                        score = max(0, 10 - age_days)  # Prefer recent samples
+                    except (ValueError, TypeError):
+                        # If date parsing fails, use a default score
+                        score = 5
+                else:
+                    score = 5
                 
                 if score > best_score:
                     best_score = score
@@ -587,9 +674,16 @@ class HABDataFetcher:
             except Exception as e:
                 print(f"⚠️  Failed to fetch fresh FWC data: {e}")
                 print("🔄 Attempting to use cached data from Google Sheets...")
-                fwc_data = self._get_cached_fwc_data()
-                if not fwc_data:
-                    print("❌ No cached data available. Using default safe status for all locations.")
+                try:
+                    fwc_data = self._get_cached_fwc_data()
+                    if fwc_data:
+                        print("✅ Successfully loaded cached data from Google Sheets")
+                    else:
+                        print("❌ No cached data available. Using default safe status for all locations.")
+                        fwc_data = self._generate_default_data()
+                except Exception as cache_error:
+                    print(f"⚠️  Failed to load cached data: {cache_error}")
+                    print("🛡️  Using default safe status for all locations.")
                     fwc_data = self._generate_default_data()
             
             # 2. Process beaches
