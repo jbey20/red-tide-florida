@@ -147,6 +147,16 @@ class WordPressSyncer:
             print(f"   - {len(data_by_type['city'])} cities")
             print(f"   - {len(data_by_type['region'])} regions")
             
+            # Debug: Show sample region data
+            if data_by_type['region']:
+                sample_region = data_by_type['region'][0]
+                print(f"   📊 Sample region data for {sample_region.get('location_name', 'Unknown')}:")
+                print(f"      - beach_count: {sample_region.get('beach_count', 'N/A')}")
+                print(f"      - city_count: {sample_region.get('city_count', 'N/A')}")
+                print(f"      - beaches_safe: {sample_region.get('beaches_safe', 'N/A')}")
+                print(f"      - beaches_caution: {sample_region.get('beaches_caution', 'N/A')}")
+                print(f"      - beaches_avoid: {sample_region.get('beaches_avoid', 'N/A')}")
+            
             return data_by_type
             
         except Exception as e:
@@ -168,7 +178,7 @@ class WordPressSyncer:
                     'sample_date': '2025-01-15',
                     'region': 'Test Region',
                     'city': 'Test City',
-                    'slug': 'test-beach-one'
+                    'slug': 'test-beach-one-red-tide'
                 },
                 {
                     'location_name': 'Test Beach Two',
@@ -179,7 +189,7 @@ class WordPressSyncer:
                     'sample_date': '2025-01-14',
                     'region': 'Test Region',
                     'city': 'Test City',
-                    'slug': 'test-beach-two'
+                    'slug': 'test-beach-two-red-tide'
                 }
             ],
             'city': [
@@ -196,7 +206,7 @@ class WordPressSyncer:
                     'beaches_caution': 1,
                     'beaches_avoid': 0,
                     'region': 'Test Region',
-                    'slug': 'test-city'
+                    'slug': 'test-city-red-tide'
                 }
             ],
             'region': [
@@ -213,7 +223,7 @@ class WordPressSyncer:
                     'beaches_safe': 1,
                     'beaches_caution': 1,
                     'beaches_avoid': 0,
-                    'slug': 'test-region'
+                    'slug': 'test-region-red-tide'
                 }
             ]
         }
@@ -286,6 +296,10 @@ class WordPressSyncer:
             slug = f"test-{slug}"
             print(f"   🧪 Test mode: Using slug '{slug}' to avoid conflicts")
         
+        # Ensure slug format is consistent
+        if not slug.endswith('-red-tide'):
+            slug = f"{slug}-red-tide"
+        
         # Check for existing post
         existing_post = self.find_existing_post(slug, post_type)
         
@@ -349,6 +363,7 @@ class WordPressSyncer:
         
         # Core ACF fields (all post types)
         acf_data = {
+            'location_name': location_name,
             'current_status': current_status,
             'status_color': self.get_status_color(current_status),
             'last_updated': datetime.now(pytz.timezone('US/Eastern')).strftime('%Y-%m-%d %H:%M:%S'),
@@ -386,7 +401,25 @@ class WordPressSyncer:
             })
             
             if post_type == 'region':
-                acf_data['city_count'] = int(data.get('city_count', 0))
+                acf_data.update({
+                    'city_count': int(data.get('city_count', 0)),
+                    'total_beaches': int(data.get('beach_count', 0)),  # Alternative field name
+                    'total_cities': int(data.get('city_count', 0)),    # Alternative field name
+                    'child_beaches': int(data.get('beach_count', 0)),  # Alternative field name
+                    'child_cities': int(data.get('city_count', 0))     # Alternative field name
+                })
+                
+                # Debug: Print region ACF data
+                print(f"   🔍 Region ACF data for {location_name}:")
+                print(f"      - beach_count: {acf_data.get('beach_count', 'N/A')}")
+                print(f"      - city_count: {acf_data.get('city_count', 'N/A')}")
+                print(f"      - beaches_safe: {acf_data.get('beaches_safe', 'N/A')}")
+                print(f"      - beaches_caution: {acf_data.get('beaches_caution', 'N/A')}")
+                print(f"      - beaches_avoid: {acf_data.get('beaches_avoid', 'N/A')}")
+                print(f"      - total_beaches: {acf_data.get('total_beaches', 'N/A')}")
+                print(f"      - total_cities: {acf_data.get('total_cities', 'N/A')}")
+                print(f"      - child_beaches: {acf_data.get('child_beaches', 'N/A')}")
+                print(f"      - child_cities: {acf_data.get('child_cities', 'N/A')}")
         
         # WordPress post payload
         post_payload = {
@@ -495,6 +528,15 @@ class WordPressSyncer:
         except Exception as e:
             print(f"\n❌ WordPress sync failed: {e}")
             raise
+    
+    def _generate_slug(self, name):
+        """Generate URL-friendly slug in format: <location-name>-red-tide"""
+        slug = name.lower()
+        slug = re.sub(r'[^a-z0-9\s-]', '', slug)
+        slug = re.sub(r'\s+', '-', slug)
+        slug = re.sub(r'-+', '-', slug)
+        slug = slug.strip('-')
+        return f"{slug}-red-tide"
 
 if __name__ == "__main__":
     # Check for required environment variables

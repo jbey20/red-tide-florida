@@ -513,12 +513,13 @@ class HABDataFetcher:
         return region_results
     
     def _generate_slug(self, name):
-        """Generate URL-friendly slug"""
+        """Generate URL-friendly slug in format: <location-name>-red-tide"""
         slug = name.lower()
         slug = re.sub(r'[^a-z0-9\s-]', '', slug)
         slug = re.sub(r'\s+', '-', slug)
         slug = re.sub(r'-+', '-', slug)
-        return slug.strip('-')
+        slug = slug.strip('-')
+        return f"{slug}-red-tide"
     
     def update_google_sheets(self, all_results):
         """Append new data to beach_status sheet (maintaining history)"""
@@ -534,8 +535,9 @@ class HABDataFetcher:
             if not existing_data:
                 headers = [
                     'location_name', 'location_type', 'date', 'current_status',
-                    'peak_count', 'confidence_score', 'sample_date', 'last_updated',
-                    'region', 'city', 'slug'
+                    'peak_count', 'avg_count', 'confidence_score', 'sample_date', 'last_updated',
+                    'region', 'city', 'slug', 'beach_count', 'city_count', 
+                    'beaches_safe', 'beaches_caution', 'beaches_avoid'
                 ]
                 worksheet.append_row(headers)
                 time.sleep(1)
@@ -551,12 +553,18 @@ class HABDataFetcher:
                     today,
                     result['current_status'],
                     result.get('peak_count', 0),
+                    result.get('avg_count', 0),
                     result.get('confidence_score', 0),
                     result.get('sample_date', ''),
                     timestamp,
                     result.get('region', ''),
                     result.get('city', ''),
-                    result['slug']
+                    result['slug'],
+                    result.get('beach_count', 0),
+                    result.get('city_count', 0),
+                    result.get('beaches_safe', 0),
+                    result.get('beaches_caution', 0),
+                    result.get('beaches_avoid', 0)
                 ]
                 worksheet.append_row(row)
                 time.sleep(1.5)  # Rate limiting
