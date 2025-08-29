@@ -95,6 +95,44 @@ class WordPressSyncer:
             time.sleep(sleep_time)
         self.last_api_call = time.time()
     
+    def _calculate_distance(self, lat1, lon1, lat2, lon2):
+        """Calculate distance between two points using Haversine formula (returns miles)"""
+        try:
+            # Convert to radians
+            lat1, lon1, lat2, lon2 = map(math.radians, [lat1, lon1, lat2, lon2])
+            
+            # Haversine formula
+            dlat = lat2 - lat1
+            dlon = lon2 - lon1
+            a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
+            c = 2 * math.asin(math.sqrt(a))
+            
+            # Earth's radius in miles
+            r = 3959
+            
+            return c * r
+        except (ValueError, TypeError):
+            return float('inf')  # Return infinity for invalid coordinates
+    
+    def _parse_coordinates(self, coord_str):
+        """Parse coordinate string in format 'lat, lon' or 'lat,lon'"""
+        if not coord_str or not isinstance(coord_str, str):
+            return None, None
+        
+        try:
+            # Remove extra spaces and split
+            coord_str = coord_str.strip()
+            if ',' in coord_str:
+                parts = coord_str.split(',')
+                if len(parts) == 2:
+                    lat = float(parts[0].strip())
+                    lon = float(parts[1].strip())
+                    return lat, lon
+        except (ValueError, TypeError):
+            pass
+        
+        return None, None
+    
     def _get_cached_sheet_data(self, worksheet_name):
         """Get sheet data with caching to reduce API calls"""
         if worksheet_name in self.sheet_cache:
@@ -845,6 +883,70 @@ class WordPressSyncer:
             
         try:
             beach_status_records = self._get_cached_sheet_data('beach_status')
+            locations_records = self._get_cached_sheet_data('locations')
+            
+            # Get coordinates for the target beach
+            target_lat, target_lon = None, None
+            for location_record in locations_records:
+                if location_record.get('beach', '') == beach_name:
+                    coord_str = f"{location_record.get('lattitude', '')}, {location_record.get('longitude', '')}".strip(', ')
+                    target_lat, target_lon = self._parse_coordinates(coord_str)
+                    break
+            
+            if target_lat is None or target_lon is None:
+                print(f"   Warning: No coordinates found for {beach_name}, using region-based filtering")
+                # Fallback to region-based filtering
+                return self._get_nearby_beaches_fallback(beach_name, region_name)
+            
+            nearby_beaches = []
+            for record in beach_status_records:
+                record_name = record.get('location_name', '')
+                record_type = record.get('location_type', '').lower()
+                record_region = record.get('region', '')
+                
+                # Find other beaches in the same region
+                if (record_type == 'beach' and 
+                    record_name != beach_name and 
+                    record_region == region_name):
+                    
+                    # Get coordinates for this beach
+                    beach_lat, beach_lon = None, None
+                    for location_record in locations_records:
+                        if location_record.get('beach', '') == record_name:
+                            coord_str = f"{location_record.get('lattitude', '')}, {location_record.get('longitude', '')}".strip(', ')
+                            beach_lat, beach_lon = self._parse_coordinates(coord_str)
+                            break
+                    
+                    if beach_lat is not None and beach_lon is not None:
+                        # Calculate actual distance
+                        distance = self._calculate_distance(target_lat, target_lon, beach_lat, beach_lon)
+                        
+                        # Only include beaches within 25 miles
+                        if distance <= 25.0:
+                            # Try to find the WordPress post ID
+                            search_slug = f"{record_name.lower().replace(' ', '-')}-red-tide"
+                            existing_post = self.find_existing_post(search_slug, 'beach')
+                            
+                            nearby_beaches.append({
+                                'beach': existing_post['id'] if existing_post else None,
+                                'distance': round(distance, 1),
+                                'current_status': record.get('current_status', 'no_data'),
+                                'status_color': self.get_status_color(record.get('current_status', 'no_data')),
+                                'description': f"{record_name} - {record.get('current_status', 'no_data')} conditions"
+                            })
+            
+            # Sort by distance and limit to 5 nearest beaches
+            nearby_beaches.sort(key=lambda x: x['distance'])
+            return nearby_beaches[:5]
+            
+        except Exception as e:
+            print(f"   Warning: Could not get nearby beaches for {beach_name}: {e}")
+            return []
+    
+    def _get_nearby_beaches_fallback(self, beach_name, region_name):
+        """Fallback method for nearby beaches when coordinates are unavailable"""
+        try:
+            beach_status_records = self._get_cached_sheet_data('beach_status')
             
             nearby_beaches = []
             for record in beach_status_records:
@@ -863,7 +965,7 @@ class WordPressSyncer:
                     
                     nearby_beaches.append({
                         'beach': existing_post['id'] if existing_post else None,
-                        'distance': 2.5,  # Mock distance
+                        'distance': 2.5,  # Fallback distance
                         'current_status': record.get('current_status', 'no_data'),
                         'status_color': self.get_status_color(record.get('current_status', 'no_data')),
                         'description': f"{record_name} - {record.get('current_status', 'no_data')} conditions"
@@ -876,7 +978,7 @@ class WordPressSyncer:
             return nearby_beaches
             
         except Exception as e:
-            print(f"   Warning: Could not get nearby beaches for {beach_name}: {e}")
+            print(f"   Warning: Could not get nearby beaches fallback for {beach_name}: {e}")
             return []
     
     def _get_nearby_beaches_for_city(self, city_name, region_name):
@@ -892,6 +994,70 @@ class WordPressSyncer:
                 }
             ]
             
+        try:
+            beach_status_records = self._get_cached_sheet_data('beach_status')
+            locations_records = self._get_cached_sheet_data('locations')
+            
+            # Get coordinates for the target city (use first beach in city as reference)
+            target_lat, target_lon = None, None
+            for location_record in locations_records:
+                if location_record.get('city', '') == city_name:
+                    coord_str = f"{location_record.get('lattitude', '')}, {location_record.get('longitude', '')}".strip(', ')
+                    target_lat, target_lon = self._parse_coordinates(coord_str)
+                    if target_lat is not None and target_lon is not None:
+                        break
+            
+            if target_lat is None or target_lon is None:
+                print(f"   Warning: No coordinates found for {city_name}, using city-based filtering")
+                # Fallback to city-based filtering
+                return self._get_nearby_beaches_for_city_fallback(city_name, region_name)
+            
+            nearby_beaches = []
+            for record in beach_status_records:
+                record_name = record.get('location_name', '')
+                record_type = record.get('location_type', '').lower()
+                record_city = record.get('city', '')
+                
+                # Find beaches in the same city
+                if (record_type == 'beach' and 
+                    record_city == city_name):
+                    
+                    # Get coordinates for this beach
+                    beach_lat, beach_lon = None, None
+                    for location_record in locations_records:
+                        if location_record.get('beach', '') == record_name:
+                            coord_str = f"{location_record.get('lattitude', '')}, {location_record.get('longitude', '')}".strip(', ')
+                            beach_lat, beach_lon = self._parse_coordinates(coord_str)
+                            break
+                    
+                    if beach_lat is not None and beach_lon is not None:
+                        # Calculate actual distance
+                        distance = self._calculate_distance(target_lat, target_lon, beach_lat, beach_lon)
+                        
+                        # Only include beaches within 15 miles
+                        if distance <= 15.0:
+                            # Try to find the WordPress post ID
+                            search_slug = f"{record_name.lower().replace(' ', '-')}-red-tide"
+                            existing_post = self.find_existing_post(search_slug, 'beach')
+                            
+                            nearby_beaches.append({
+                                'beach': existing_post['id'] if existing_post else None,
+                                'distance': round(distance, 1),
+                                'current_status': record.get('current_status', 'no_data'),
+                                'status_color': self.get_status_color(record.get('current_status', 'no_data')),
+                                'description': f"{record_name} - {record.get('current_status', 'no_data')} conditions"
+                            })
+            
+            # Sort by distance and limit to 8 nearest beaches
+            nearby_beaches.sort(key=lambda x: x['distance'])
+            return nearby_beaches[:8]
+            
+        except Exception as e:
+            print(f"   Warning: Could not get nearby beaches for city {city_name}: {e}")
+            return []
+    
+    def _get_nearby_beaches_for_city_fallback(self, city_name, region_name):
+        """Fallback method for nearby beaches for city when coordinates are unavailable"""
         try:
             beach_status_records = self._get_cached_sheet_data('beach_status')
             
@@ -911,7 +1077,7 @@ class WordPressSyncer:
                     
                     nearby_beaches.append({
                         'beach': existing_post['id'] if existing_post else None,
-                        'distance': 1.5,  # Mock distance
+                        'distance': 1.5,  # Fallback distance
                         'current_status': record.get('current_status', 'no_data'),
                         'status_color': self.get_status_color(record.get('current_status', 'no_data')),
                         'description': f"{record_name} - {record.get('current_status', 'no_data')} conditions"
@@ -924,7 +1090,7 @@ class WordPressSyncer:
             return nearby_beaches
             
         except Exception as e:
-            print(f"   Warning: Could not get nearby beaches for city {city_name}: {e}")
+            print(f"   Warning: Could not get nearby beaches for city fallback {city_name}: {e}")
             return []
     
     def _get_nearby_cities(self, city_name, region_name):
@@ -940,6 +1106,78 @@ class WordPressSyncer:
                 }
             ]
             
+        try:
+            beach_status_records = self._get_cached_sheet_data('beach_status')
+            locations_records = self._get_cached_sheet_data('locations')
+            
+            # Get coordinates for the target city (use first beach in city as reference)
+            target_lat, target_lon = None, None
+            for location_record in locations_records:
+                if location_record.get('city', '') == city_name:
+                    coord_str = f"{location_record.get('lattitude', '')}, {location_record.get('longitude', '')}".strip(', ')
+                    target_lat, target_lon = self._parse_coordinates(coord_str)
+                    if target_lat is not None and target_lon is not None:
+                        break
+            
+            if target_lat is None or target_lon is None:
+                print(f"   Warning: No coordinates found for {city_name}, using region-based filtering")
+                # Fallback to region-based filtering
+                return self._get_nearby_cities_fallback(city_name, region_name)
+            
+            # Get unique cities in the same region with coordinates
+            cities_with_coords = []
+            for record in beach_status_records:
+                record_city = record.get('city', '')
+                record_region = record.get('region', '')
+                record_type = record.get('location_type', '').lower()
+                
+                if record_type == 'city' and record_region == region_name and record_city != city_name:
+                    # Get coordinates for this city
+                    city_lat, city_lon = None, None
+                    for location_record in locations_records:
+                        if location_record.get('city', '') == record_city:
+                            coord_str = f"{location_record.get('lattitude', '')}, {location_record.get('longitude', '')}".strip(', ')
+                            city_lat, city_lon = self._parse_coordinates(coord_str)
+                            if city_lat is not None and city_lon is not None:
+                                break
+                    
+                    if city_lat is not None and city_lon is not None:
+                        # Calculate actual distance
+                        distance = self._calculate_distance(target_lat, target_lon, city_lat, city_lon)
+                        
+                        # Only include cities within 50 miles
+                        if distance <= 50.0:
+                            cities_with_coords.append({
+                                'city_name': record_city,
+                                'distance': distance,
+                                'status': record.get('current_status', 'no_data')
+                            })
+            
+            # Sort by distance and limit to 5 nearest cities
+            cities_with_coords.sort(key=lambda x: x['distance'])
+            nearby_cities = []
+            
+            for city_data in cities_with_coords[:5]:
+                # Try to find the WordPress post ID
+                search_slug = f"{city_data['city_name'].lower().replace(' ', '-')}-red-tide"
+                existing_post = self.find_existing_post(search_slug, 'city')
+                
+                nearby_cities.append({
+                    'city': existing_post['id'] if existing_post else None,
+                    'distance': round(city_data['distance'], 1),
+                    'current_status': city_data['status'],
+                    'status_color': self.get_status_color(city_data['status']),
+                    'description': f"{city_data['city_name']} - {city_data['status']} conditions"
+                })
+            
+            return nearby_cities
+            
+        except Exception as e:
+            print(f"   Warning: Could not get nearby cities for {city_name}: {e}")
+            return []
+    
+    def _get_nearby_cities_fallback(self, city_name, region_name):
+        """Fallback method for nearby cities when coordinates are unavailable"""
         try:
             beach_status_records = self._get_cached_sheet_data('beach_status')
             
@@ -969,7 +1207,7 @@ class WordPressSyncer:
                 
                 nearby_cities.append({
                     'city': existing_post['id'] if existing_post else None,
-                    'distance': 15.0,  # Mock distance
+                    'distance': 15.0,  # Fallback distance
                     'current_status': city_status,
                     'status_color': self.get_status_color(city_status),
                     'description': f"{city} - {city_status} conditions"
@@ -978,7 +1216,7 @@ class WordPressSyncer:
             return nearby_cities
             
         except Exception as e:
-            print(f"   Warning: Could not get nearby cities for {city_name}: {e}")
+            print(f"   Warning: Could not get nearby cities fallback for {city_name}: {e}")
             return []
     
     def _get_nearby_regions(self, region_name):
