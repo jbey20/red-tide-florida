@@ -26,6 +26,14 @@ class WordPressSyncer:
         self.test_limit = int(test_limit_str) if test_limit_str and test_limit_str.strip() else 2
         self.wordpress_test_only = os.environ.get('WORDPRESS_TEST_ONLY', 'false').lower() == 'true'
         
+        # Rate limiting and caching
+        self.sheet_cache = {}
+        self.last_api_call = 0
+        # Adjust rate limiting based on environment (more conservative for production)
+        rate_limit_str = os.environ.get('API_RATE_LIMIT_SECONDS', '1.1')
+        self.min_call_interval = float(rate_limit_str)
+        print(f"⏱️  API rate limiting: {self.min_call_interval}s between calls")
+        
         if self.test_mode:
             print(f"🧪 Running in TEST MODE (limited to {self.test_limit} posts per type)")
         
@@ -42,7 +50,63 @@ class WordPressSyncer:
         # Test WordPress connection
         self._test_wordpress_auth()
         
+        # Preload all sheet data to minimize API calls
+        if not self.wordpress_test_only:
+            self._preload_sheet_data()
+        
         print("✅ WordPress syncer initialized successfully")
+    
+    def _rate_limit(self):
+        """Ensure minimum time between API calls"""
+        current_time = time.time()
+        time_since_last = current_time - self.last_api_call
+        if time_since_last < self.min_call_interval:
+            sleep_time = self.min_call_interval - time_since_last
+            time.sleep(sleep_time)
+        self.last_api_call = time.time()
+    
+    def _get_cached_sheet_data(self, worksheet_name):
+        """Get sheet data with caching to reduce API calls"""
+        if worksheet_name in self.sheet_cache:
+            return self.sheet_cache[worksheet_name]
+        
+        self._rate_limit()
+        try:
+            worksheet = self.sheet.worksheet(worksheet_name)
+            records = worksheet.get_all_records()
+            self.sheet_cache[worksheet_name] = records
+            return records
+        except Exception as e:
+            if "429" in str(e) or "quota exceeded" in str(e).lower():
+                print(f"⚠️  Rate limit hit while loading {worksheet_name}. Waiting 60 seconds...")
+                time.sleep(60)
+                # Retry once after waiting
+                self._rate_limit()
+                worksheet = self.sheet.worksheet(worksheet_name)
+                records = worksheet.get_all_records()
+                self.sheet_cache[worksheet_name] = records
+                return records
+            else:
+                raise
+    
+    def clear_cache(self):
+        """Clear the sheet cache to force fresh data"""
+        self.sheet_cache.clear()
+        print("🗑️  Sheet cache cleared")
+    
+    def _preload_sheet_data(self):
+        """Preload all required sheet data to minimize API calls during processing"""
+        print("📥 Preloading Google Sheets data...")
+        try:
+            # Load all required worksheets
+            required_sheets = ['beach_status', 'locations', 'sample_mapping']
+            for sheet_name in required_sheets:
+                print(f"   Loading {sheet_name}...")
+                self._get_cached_sheet_data(sheet_name)
+            print("✅ All sheet data preloaded successfully")
+        except Exception as e:
+            print(f"⚠️  Warning: Could not preload all sheet data: {e}")
+            print("   Will load data as needed during processing")
     
     def _init_google_sheets(self):
         """Initialize Google Sheets client"""
@@ -113,8 +177,7 @@ class WordPressSyncer:
             return self._generate_mock_data()
             
         try:
-            worksheet = self.sheet.worksheet('beach_status')
-            records = worksheet.get_all_records()
+            records = self._get_cached_sheet_data('beach_status')
             
             # Group by location name and type, keeping only the most recent record for each
             data_by_type = {'beach': [], 'city': [], 'region': []}
@@ -275,6 +338,9 @@ class WordPressSyncer:
     
     def find_existing_post(self, slug, post_type):
         """Find existing WordPress post by slug"""
+        # Rate limit WordPress API calls
+        self._rate_limit()
+        
         # Map post types to REST endpoints
         rest_endpoints = {
             'beach': 'beaches',
@@ -303,6 +369,9 @@ class WordPressSyncer:
     
     def create_or_update_post(self, data, post_type):
         """Create or update a WordPress post"""
+        # Rate limit WordPress API calls too
+        self._rate_limit()
+        
         # Map post types to REST endpoints
         rest_endpoints = {
             'beach': 'beaches',
@@ -485,8 +554,7 @@ class WordPressSyncer:
             }
             
         try:
-            worksheet = self.sheet.worksheet('locations')
-            records = worksheet.get_all_records()
+            records = self._get_cached_sheet_data('locations')
             
             for record in records:
                 if record.get('beach', '') == beach_name:
@@ -524,9 +592,9 @@ class WordPressSyncer:
             ]
             
         try:
-            # First, get the locations sheet to map beaches to cities
-            locations_worksheet = self.sheet.worksheet('locations')
-            locations_records = locations_worksheet.get_all_records()
+            # Get cached data from both sheets
+            locations_records = self._get_cached_sheet_data('locations')
+            sample_records = self._get_cached_sheet_data('sample_mapping')
             
             # Create a mapping of beach names to cities
             beach_to_city = {}
@@ -535,10 +603,6 @@ class WordPressSyncer:
                 beach_city = location_record.get('city', '')
                 if beach_name and beach_city:
                     beach_to_city[beach_name] = beach_city
-            
-            # Now get the sample mapping sheet
-            sample_worksheet = self.sheet.worksheet('sample_mapping')
-            sample_records = sample_worksheet.get_all_records()
             
             hab_sites = []
             for record in sample_records:
