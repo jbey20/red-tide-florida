@@ -34,6 +34,10 @@ class WordPressSyncer:
         self.min_call_interval = float(rate_limit_str)
         print(f"⏱️  API rate limiting: {self.min_call_interval}s between calls")
         
+        # ACF configuration
+        self.use_relationship_fields = os.environ.get('USE_ACF_RELATIONSHIPS', 'true').lower() == 'true'
+        print(f"🔗 ACF relationship fields: {'enabled' if self.use_relationship_fields else 'disabled'}")
+        
         if self.test_mode:
             print(f"🧪 Running in TEST MODE (limited to {self.test_limit} posts per type)")
         
@@ -93,6 +97,34 @@ class WordPressSyncer:
         """Clear the sheet cache to force fresh data"""
         self.sheet_cache.clear()
         print("🗑️  Sheet cache cleared")
+    
+    def _find_related_post_ids(self, region_name, post_type):
+        """Find post IDs for related posts (beaches/cities in a region)"""
+        try:
+            # Get the beach_status data to find related posts
+            beach_status_records = self._get_cached_sheet_data('beach_status')
+            
+            related_ids = []
+            for record in beach_status_records:
+                record_region = record.get('region', '')
+                record_type = record.get('location_type', '').lower()
+                
+                # Match region and post type
+                if record_region == region_name and record_type == post_type:
+                    # Try to find the WordPress post ID for this location
+                    location_name = record.get('location_name', '')
+                    if location_name:
+                        # Search for existing post
+                        search_slug = f"{location_name.lower().replace(' ', '-')}-red-tide"
+                        existing_post = self.find_existing_post(search_slug, post_type)
+                        if existing_post:
+                            related_ids.append(existing_post['id'])
+            
+            return related_ids
+            
+        except Exception as e:
+            print(f"   Warning: Could not find related post IDs for {region_name}: {e}")
+            return []
     
     def _preload_sheet_data(self):
         """Preload all required sheet data to minimize API calls during processing"""
@@ -514,9 +546,28 @@ class WordPressSyncer:
                     'city_count': int(data.get('city_count', 0)),
                     'total_beaches': int(data.get('beach_count', 0)),  # Alternative field name
                     'total_cities': int(data.get('city_count', 0)),    # Alternative field name
-                    'child_beaches': int(data.get('beach_count', 0)),  # Alternative field name
-                    'child_cities': int(data.get('city_count', 0))     # Alternative field name
+                    'beach_count': int(data.get('beach_count', 0)),
+                    'city_count': int(data.get('city_count', 0))
                 })
+                
+                # Handle relationship fields based on configuration
+                if self.use_relationship_fields:
+                    # Get related post IDs for relationship fields
+                    region_name = data.get('location_name', '')
+                    child_beach_ids = self._find_related_post_ids(region_name, 'beach')
+                    child_city_ids = self._find_related_post_ids(region_name, 'city')
+                    
+                    acf_data.update({
+                        'child_beaches': child_beach_ids,
+                        'child_cities': child_city_ids
+                    })
+                    
+                    # Debug: Print relationship data
+                    print(f"      - child_beaches (IDs): {child_beach_ids}")
+                    print(f"      - child_cities (IDs): {child_city_ids}")
+                else:
+                    print(f"      - child_beaches: disabled (using count fields)")
+                    print(f"      - child_cities: disabled (using count fields)")
                 
                 # Debug: Print region ACF data
                 print(f"   🔍 Region ACF data for {location_name}:")
@@ -527,8 +578,7 @@ class WordPressSyncer:
                 print(f"      - beaches_avoid: {acf_data.get('beaches_avoid', 'N/A')}")
                 print(f"      - total_beaches: {acf_data.get('total_beaches', 'N/A')}")
                 print(f"      - total_cities: {acf_data.get('total_cities', 'N/A')}")
-                print(f"      - child_beaches: {acf_data.get('child_beaches', 'N/A')}")
-                print(f"      - child_cities: {acf_data.get('child_cities', 'N/A')}")
+                # Note: child_beaches and child_cities are relationship fields, using count fields instead
         
         # WordPress post payload
         post_payload = {
