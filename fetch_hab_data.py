@@ -191,82 +191,7 @@ class HABDataFetcher:
                 print(f"❌ Unexpected error fetching FWC data: {e}")
                 raise
     
-    def _get_cached_fwc_data(self):
-        """Get cached FWC data from Google Sheets if available"""
-        try:
-            worksheet = self.sheet.worksheet('beach_status')
-            
-            # Get only the most recent rows to avoid timeout with large datasets
-            all_values = worksheet.get_all_values()
-            if len(all_values) <= 1:  # Only headers or empty
-                return None
-            
-            # Get the last 500 rows (excluding header) to find recent data
-            recent_rows = all_values[-500:] if len(all_values) > 500 else all_values[1:]
-            headers = all_values[0]
-            records = []
-            for row in recent_rows:
-                if len(row) >= len(headers):
-                    record = dict(zip(headers, row))
-                    records.append(record)
-            
-            if not records:
-                return None
-            
-            # Get the most recent record for each location
-            latest_records = {}
-            for record in records:
-                location_name = record.get('location_name', '')
-                location_type = record.get('location_type', '').lower()
-                last_updated = record.get('last_updated', '')
-                
-                if location_name and location_type == 'beach':
-                    key = location_name
-                    if key not in latest_records or last_updated > latest_records[key].get('last_updated', ''):
-                        latest_records[key] = record
-            
-            if not latest_records:
-                return None
-            
-            # Convert cached data back to FWC format
-            features = []
-            for beach_name, record in latest_records.items():
-                # Create a mock feature that represents the cached data
-                feature = {
-                    'attributes': {
-                        'HAB_ID': f"cached_{beach_name}",
-                        'SAMPLE_DATE': record.get('sample_date', ''),
-                        'ABUNDANCE': record.get('current_status', 'safe'),
-                        'CELLS_L': record.get('peak_count', 500)
-                    }
-                }
-                features.append(feature)
-            
-            print(f"📋 Using cached data for {len(features)} locations")
-            return {'features': features}
-            
-        except Exception as e:
-            print(f"⚠️  Failed to get cached data: {e}")
-            return None
-    
-    def _generate_default_data(self):
-        """Generate default safe status data when no FWC data is available"""
-        print("🛡️  Generating default safe status data...")
-        
-        features = []
-        for beach_name in self.sample_mapping.keys():
-            feature = {
-                'attributes': {
-                    'HAB_ID': f"default_{beach_name}",
-                    'SAMPLE_DATE': datetime.now().strftime('%Y-%m-%d'),
-                    'ABUNDANCE': 'safe',
-                    'CELLS_L': 500
-                }
-            }
-            features.append(feature)
-        
-        print(f"🛡️  Generated default data for {len(features)} locations")
-        return {'features': features}
+
     
     def parse_abundance_to_status(self, abundance_text):
         """Convert FWC abundance categories to status and cell count"""
@@ -667,24 +592,15 @@ class HABDataFetcher:
         print("🌊 Starting HAB Data Processing...")
         
         try:
-            # 1. Fetch FWC data with fallback
+            # 1. Fetch FWC data - no fallback, fail if not available
             try:
                 fwc_data = self.fetch_fwc_data()
                 print("✅ Successfully fetched fresh FWC data")
             except Exception as e:
-                print(f"⚠️  Failed to fetch fresh FWC data: {e}")
-                print("🔄 Attempting to use cached data from Google Sheets...")
-                try:
-                    fwc_data = self._get_cached_fwc_data()
-                    if fwc_data:
-                        print("✅ Successfully loaded cached data from Google Sheets")
-                    else:
-                        print("❌ No cached data available. Using default safe status for all locations.")
-                        fwc_data = self._generate_default_data()
-                except Exception as cache_error:
-                    print(f"⚠️  Failed to load cached data: {cache_error}")
-                    print("🛡️  Using default safe status for all locations.")
-                    fwc_data = self._generate_default_data()
+                print(f"❌ Failed to fetch FWC HAB data: {e}")
+                print("🛑 Cannot continue without fresh FWC data. Stopping sync process.")
+                print("💡 Check FWC API availability and network connectivity.")
+                raise Exception(f"FWC HAB data unavailable: {e}")
             
             # 2. Process beaches
             print(f"\n📍 Processing {len(self.sample_mapping)} beaches...")

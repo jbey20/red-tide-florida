@@ -73,7 +73,7 @@ This guide will help you set up a local environment to test the Red Tide Florida
 
 ### Test FWC API Only (No Google Sheets Required)
 ```bash
-python test_fwc_only.py
+python utilities/test_fwc_only.py
 ```
 This tests:
 - FWC API connectivity
@@ -82,7 +82,7 @@ This tests:
 
 ### Test Environment Setup
 ```bash
-python load_env.py
+python utilities/load_env.py
 ```
 This checks if all required environment variables are set correctly.
 
@@ -97,6 +97,12 @@ This runs the complete HAB data processing pipeline (requires Google Sheets setu
 python sync_to_wordpress.py
 ```
 This syncs data to WordPress (requires WordPress credentials in .env).
+
+### Verify Sheet Headers
+```bash
+python utilities/verify_sheet_headers.py
+```
+This verifies that your Google Sheet headers are correctly formatted.
 
 ## Current Status
 
