@@ -16,7 +16,7 @@ def test_fwc_api_directly():
     """Test the FWC API directly"""
     print("🌊 Testing FWC API directly...")
     
-    fwc_api_url = "https://atoll.floridamarine.org/arcgis/rest/services/FWC_GIS/OpenData_HAB/MapServer/9/query"
+    fwc_api_url = "https://services2.arcgis.com/z6TmTIyYXEYhuNM0/arcgis/rest/services/HAB_Current_Web_Layer/FeatureServer/0/query"
     
     params = {
         'where': '1=1',

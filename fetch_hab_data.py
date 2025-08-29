@@ -45,7 +45,7 @@ load_env_file()
 class HABDataFetcher:
     def __init__(self):
         # API Configuration
-        self.fwc_api_url = "https://atoll.floridamarine.org/arcgis/rest/services/FWC_GIS/OpenData_HAB/MapServer/9/query"
+        self.fwc_api_url = "https://services2.arcgis.com/z6TmTIyYXEYhuNM0/arcgis/rest/services/HAB_Current_Web_Layer/FeatureServer/0/query"
         
         # Test mode configuration
         self.test_mode = os.environ.get('TEST_MODE', 'false').lower() == 'true'
