@@ -199,10 +199,203 @@ class WordPressSyncer:
             for sheet_name in required_sheets:
                 print(f"   Loading {sheet_name}...")
                 self._get_cached_sheet_data(sheet_name)
+            
+            # Build lookup structures for efficient child post finding
+            self._build_child_post_lookups()
+            
             print("✅ All sheet data preloaded successfully")
         except Exception as e:
             print(f"⚠️  Warning: Could not preload all sheet data: {e}")
             print("   Will load data as needed during processing")
+    
+    def _build_child_post_lookups(self):
+        """Build lookup structures to efficiently find child posts without repeated loops"""
+        print("🔍 Building child post lookup structures...")
+        
+        try:
+            # Get all beach status records
+            beach_status_records = self._get_cached_sheet_data('beach_status')
+            
+            # Build region -> beaches lookup
+            self.region_to_beaches = {}
+            self.region_to_cities = {}
+            self.city_to_beaches = {}
+            
+            # Single pass through all records to build lookups
+            for record in beach_status_records:
+                location_name = record.get('location_name', '')
+                location_type = record.get('location_type', '').lower()
+                region = record.get('region', '')
+                city = record.get('city', '')
+                
+                if not location_name or not region:
+                    continue
+                
+                # Build region -> beaches lookup
+                if location_type == 'beach':
+                    if region not in self.region_to_beaches:
+                        self.region_to_beaches[region] = []
+                    self.region_to_beaches[region].append(location_name)
+                    
+                    # Also build city -> beaches lookup
+                    if city:
+                        if city not in self.city_to_beaches:
+                            self.city_to_beaches[city] = []
+                        self.city_to_beaches[city].append(location_name)
+                
+                # Build region -> cities lookup
+                elif location_type == 'city':
+                    if region not in self.region_to_cities:
+                        self.region_to_cities[region] = []
+                    if location_name not in self.region_to_cities[region]:
+                        self.region_to_cities[region].append(location_name)
+            
+            # Pre-fetch WordPress post IDs for all locations to avoid repeated API calls
+            self._prefetch_wordpress_post_ids()
+            
+            print(f"   ✅ Built lookups for {len(self.region_to_beaches)} regions")
+            print(f"   ✅ Built lookups for {len(self.city_to_beaches)} cities")
+            
+        except Exception as e:
+            print(f"   ⚠️  Warning: Could not build child post lookups: {e}")
+            # Fallback to empty lookups
+            self.region_to_beaches = {}
+            self.region_to_cities = {}
+            self.city_to_beaches = {}
+    
+    def _prefetch_wordpress_post_ids(self):
+        """Pre-fetch WordPress post IDs for all locations to avoid repeated API calls"""
+        print("   🔍 Pre-fetching WordPress post IDs...")
+        
+        try:
+            # Get all unique location names from our lookups
+            all_locations = set()
+            
+            # Add all beaches
+            for beaches in self.region_to_beaches.values():
+                all_locations.update(beaches)
+            
+            # Add all cities
+            for cities in self.region_to_cities.values():
+                all_locations.update(cities)
+            
+            # Add all regions
+            all_locations.update(self.region_to_beaches.keys())
+            
+            # Build a mapping of location name -> post ID for each type
+            self.location_to_post_id = {'beach': {}, 'city': {}, 'region': {}}
+            
+            # Pre-fetch beach post IDs
+            if self.region_to_beaches:
+                beach_names = list(set([beach for beaches in self.region_to_beaches.values() for beach in beaches]))
+                self._prefetch_post_ids_by_type(beach_names, 'beach')
+            
+            # Pre-fetch city post IDs
+            if self.region_to_cities:
+                city_names = list(set([city for cities in self.region_to_cities.values() for city in cities]))
+                self._prefetch_post_ids_by_type(city_names, 'city')
+            
+            # Pre-fetch region post IDs
+            region_names = list(self.region_to_beaches.keys())
+            self._prefetch_post_ids_by_type(region_names, 'region')
+            
+            print(f"      ✅ Pre-fetched post IDs for {len(all_locations)} locations")
+            
+        except Exception as e:
+            print(f"      ⚠️  Warning: Could not pre-fetch post IDs: {e}")
+            self.location_to_post_id = {'beach': {}, 'city': {}, 'region': {}}
+    
+    def _prefetch_post_ids_by_type(self, location_names, post_type):
+        """Pre-fetch post IDs for a specific post type"""
+        try:
+            # Map post types to REST endpoints
+            rest_endpoints = {
+                'beach': 'beaches',
+                'city': 'cities',
+                'region': 'regions'
+            }
+            
+            rest_base = rest_endpoints.get(post_type, post_type)
+            
+            # Get all posts of this type from WordPress
+            search_url = f"{self.wp_site_url}/wp-json/wp/v2/{rest_base}"
+            params = {'per_page': 100}  # Get more posts to search through
+            
+            self._rate_limit()
+            response = requests.get(search_url, params=params, auth=self.auth, timeout=10)
+            
+            if response.status_code == 200:
+                posts = response.json()
+                
+                # Build mapping of location name -> post ID
+                for post in posts:
+                    post_title = post.get('title', {}).get('rendered', '')
+                    post_slug = post.get('slug', '')
+                    post_id = post.get('id')
+                    
+                    # Try to match by title or slug
+                    for location_name in location_names:
+                        if (location_name.lower() in post_title.lower() or 
+                            location_name.lower() in post_slug.lower() or
+                            location_name.lower().replace(' ', '') in post_slug.lower()):
+                            self.location_to_post_id[post_type][location_name] = post_id
+                            break
+                
+                print(f"         ✅ Pre-fetched {len(self.location_to_post_id[post_type])} {post_type} post IDs")
+            else:
+                print(f"         ⚠️  Failed to pre-fetch {post_type} posts: {response.status_code}")
+                
+        except Exception as e:
+            print(f"         ⚠️  Error pre-fetching {post_type} post IDs: {e}")
+    
+    def _find_child_post_ids_optimized(self, parent_name, child_type):
+        """Optimized version of _find_child_post_ids using pre-built lookups"""
+        try:
+            if child_type == 'beach':
+                # Use pre-built lookup
+                if parent_name in self.region_to_beaches:
+                    beach_names = self.region_to_beaches[parent_name]
+                    child_ids = []
+                    
+                    for beach_name in beach_names:
+                        post_id = self.location_to_post_id['beach'].get(beach_name)
+                        if post_id:
+                            child_ids.append(post_id)
+                            print(f"      ✅ Found child beach: {beach_name} (ID: {post_id})")
+                        else:
+                            print(f"      ⚠️  Child beach {beach_name} not found in WordPress")
+                    
+                    print(f"      📊 Total child beaches found for {parent_name}: {len(child_ids)}")
+                    return child_ids
+                else:
+                    print(f"      ⚠️  No beaches found for region {parent_name}")
+                    return []
+                    
+            elif child_type == 'city':
+                # Use pre-built lookup
+                if parent_name in self.region_to_cities:
+                    city_names = self.region_to_cities[parent_name]
+                    child_ids = []
+                    
+                    for city_name in city_names:
+                        post_id = self.location_to_post_id['city'].get(city_name)
+                        if post_id:
+                            child_ids.append(post_id)
+                            print(f"      ✅ Found child city: {city_name} (ID: {post_id})")
+                        else:
+                            print(f"      ⚠️  Child city {city_name} not found in WordPress")
+                    
+                    print(f"      📊 Total child cities found for {parent_name}: {len(child_ids)}")
+                    return child_ids
+                else:
+                    print(f"      ⚠️  No cities found for region {parent_name}")
+                    return []
+            
+            return []
+            
+        except Exception as e:
+            print(f"   Warning: Could not find child {child_type} IDs for {parent_name}: {e}")
+            return []
     
     def _init_google_sheets(self):
         """Initialize Google Sheets client"""
@@ -839,7 +1032,12 @@ class WordPressSyncer:
             return None
     
     def _find_child_post_ids(self, parent_name, child_type):
-        """Find post IDs for child beaches or cities in a parent region/city"""
+        """Find post IDs for child beaches or cities in a parent region/city - now optimized"""
+        # Use the optimized version if lookups are available
+        if hasattr(self, 'region_to_beaches') and self.region_to_beaches:
+            return self._find_child_post_ids_optimized(parent_name, child_type)
+        
+        # Fallback to original method if lookups aren't available
         try:
             if child_type == 'beach':
                 # For beaches, search through WordPress beach posts to find those belonging to the city
@@ -947,7 +1145,7 @@ class WordPressSyncer:
             return f"{region_name} region in Florida encompasses {city_count} cities and {beach_count} monitored beaches. Comprehensive red tide monitoring is ongoing."
     
     def _get_nearby_beaches(self, beach_name, region_name):
-        """Get nearby beaches for a specific beach"""
+        """Get nearby beaches for a specific beach - now optimized"""
         if self.wordpress_test_only:
             return [
                 {
@@ -958,7 +1156,12 @@ class WordPressSyncer:
                     'description': 'Nearby beach with safe conditions'
                 }
             ]
-            
+        
+        # Use optimized lookup if available
+        if hasattr(self, 'region_to_beaches') and self.region_to_beaches:
+            return self._get_nearby_beaches_optimized(beach_name, region_name)
+        
+        # Fallback to original method
         try:
             beach_status_records = self._get_cached_sheet_data('beach_status')
             locations_records = self._get_cached_sheet_data('locations')
@@ -1019,6 +1222,80 @@ class WordPressSyncer:
             
         except Exception as e:
             print(f"   Warning: Could not get nearby beaches for {beach_name}: {e}")
+            return []
+    
+    def _get_nearby_beaches_optimized(self, beach_name, region_name):
+        """Optimized version of _get_nearby_beaches using pre-built lookups"""
+        try:
+            # Use pre-built lookup to get all beaches in the region
+            if region_name not in self.region_to_beaches:
+                return []
+            
+            beach_names = self.region_to_beaches[region_name]
+            nearby_beaches = []
+            
+            # Get coordinates for the target beach
+            locations_records = self._get_cached_sheet_data('locations')
+            target_lat, target_lon = None, None
+            for location_record in locations_records:
+                if location_record.get('beach', '') == beach_name:
+                    coord_str = f"{location_record.get('lattitude', '')}, {location_record.get('longitude', '')}".strip(', ')
+                    target_lat, target_lon = self._parse_coordinates(coord_str)
+                    break
+            
+            if target_lat is None or target_lon is None:
+                print(f"   Warning: No coordinates found for {beach_name}, using region-based filtering")
+                # Fallback to region-based filtering
+                return self._get_nearby_beaches_fallback(beach_name, region_name)
+            
+            # Get beach status data for the region
+            beach_status_records = self._get_cached_sheet_data('beach_status')
+            beach_status_lookup = {}
+            for record in beach_status_records:
+                if (record.get('location_type', '').lower() == 'beach' and 
+                    record.get('region', '') == region_name):
+                    beach_status_lookup[record.get('location_name', '')] = record
+            
+            # Process each beach in the region
+            for other_beach_name in beach_names:
+                if other_beach_name == beach_name:
+                    continue
+                
+                # Get coordinates for this beach
+                beach_lat, beach_lon = None, None
+                for location_record in locations_records:
+                    if location_record.get('beach', '') == other_beach_name:
+                        coord_str = f"{location_record.get('lattitude', '')}, {location_record.get('longitude', '')}".strip(', ')
+                        beach_lat, beach_lon = self._parse_coordinates(coord_str)
+                        break
+                
+                if beach_lat is not None and beach_lon is not None:
+                    # Calculate actual distance
+                    distance = self._calculate_distance(target_lat, target_lon, beach_lat, beach_lon)
+                    
+                    # Only include beaches within 25 miles
+                    if distance <= 25.0:
+                        # Get post ID from pre-fetched lookup
+                        post_id = self.location_to_post_id['beach'].get(other_beach_name)
+                        
+                        # Get status from lookup
+                        beach_status = beach_status_lookup.get(other_beach_name, {})
+                        current_status = beach_status.get('current_status', 'no_data')
+                        
+                        nearby_beaches.append({
+                            'beach': post_id,
+                            'distance': round(distance, 1),
+                            'current_status': current_status,
+                            'status_color': self.get_status_color(current_status),
+                            'description': f"{other_beach_name} - {current_status} conditions"
+                        })
+            
+            # Sort by distance and limit to 5 nearest beaches
+            nearby_beaches.sort(key=lambda x: x['distance'])
+            return nearby_beaches[:5]
+            
+        except Exception as e:
+            print(f"   Warning: Could not get nearby beaches optimized for {beach_name}: {e}")
             return []
     
     def _get_nearby_beaches_fallback(self, beach_name, region_name):
@@ -1172,7 +1449,7 @@ class WordPressSyncer:
             return []
     
     def _get_nearby_cities(self, city_name, region_name):
-        """Get nearby cities for a specific city"""
+        """Get nearby cities for a specific city - now region-based instead of distance-based"""
         if self.wordpress_test_only:
             return [
                 {
@@ -1183,83 +1460,16 @@ class WordPressSyncer:
                     'description': 'Nearby city with moderate conditions'
                 }
             ]
-            
-        try:
-            beach_status_records = self._get_cached_sheet_data('beach_status')
-            locations_records = self._get_cached_sheet_data('locations')
-            
-            # Get coordinates for the target city (use first beach in city as reference)
-            target_lat, target_lon = None, None
-            for location_record in locations_records:
-                if location_record.get('city', '') == city_name:
-                    coord_str = f"{location_record.get('lattitude', '')}, {location_record.get('longitude', '')}".strip(', ')
-                    target_lat, target_lon = self._parse_coordinates(coord_str)
-                    if target_lat is not None and target_lon is not None:
-                        break
-            
-            if target_lat is None or target_lon is None:
-                print(f"   Warning: No coordinates found for {city_name}, using region-based filtering")
-                # Fallback to region-based filtering
-                return self._get_nearby_cities_fallback(city_name, region_name)
-            
-            # Get unique cities in the same region with coordinates
-            cities_with_coords = []
-            for record in beach_status_records:
-                record_city = record.get('city', '')
-                record_region = record.get('region', '')
-                record_type = record.get('location_type', '').lower()
-                
-                if record_type == 'city' and record_region == region_name and record_city != city_name:
-                    # Get coordinates for this city
-                    city_lat, city_lon = None, None
-                    for location_record in locations_records:
-                        if location_record.get('city', '') == record_city:
-                            coord_str = f"{location_record.get('lattitude', '')}, {location_record.get('longitude', '')}".strip(', ')
-                            city_lat, city_lon = self._parse_coordinates(coord_str)
-                            if city_lat is not None and city_lon is not None:
-                                break
-                    
-                    if city_lat is not None and city_lon is not None:
-                        # Calculate actual distance
-                        distance = self._calculate_distance(target_lat, target_lon, city_lat, city_lon)
-                        
-                        # Only include cities within 50 miles
-                        if distance <= 50.0:
-                            cities_with_coords.append({
-                                'city_name': record_city,
-                                'distance': distance,
-                                'status': record.get('current_status', 'no_data')
-                            })
-            
-            # Sort by distance and limit to 5 nearest cities
-            cities_with_coords.sort(key=lambda x: x['distance'])
-            nearby_cities = []
-            
-            for city_data in cities_with_coords[:5]:
-                # Try to find the WordPress post ID
-                search_slug = f"{city_data['city_name'].lower().replace(' ', '-')}-red-tide"
-                existing_post = self.find_existing_post(search_slug, 'city')
-                
-                nearby_cities.append({
-                    'city': existing_post['id'] if existing_post else None,
-                    'distance': round(city_data['distance'], 1),
-                    'current_status': city_data['status'],
-                    'status_color': self.get_status_color(city_data['status']),
-                    'description': f"{city_data['city_name']} - {city_data['status']} conditions"
-                })
-            
-            return nearby_cities
-            
-        except Exception as e:
-            print(f"   Warning: Could not get nearby cities for {city_name}: {e}")
-            return []
-    
-    def _get_nearby_cities_fallback(self, city_name, region_name):
-        """Fallback method for nearby cities when coordinates are unavailable"""
+        
+        # Use optimized lookup if available
+        if hasattr(self, 'region_to_cities') and self.region_to_cities:
+            return self._get_nearby_cities_optimized(city_name, region_name)
+        
+        # Fallback to original method
         try:
             beach_status_records = self._get_cached_sheet_data('beach_status')
             
-            # Get unique cities in the same region
+            # Get unique cities in the same region (region-based logic)
             cities_in_region = set()
             for record in beach_status_records:
                 record_city = record.get('city', '')
@@ -1270,7 +1480,7 @@ class WordPressSyncer:
                     cities_in_region.add(record_city)
             
             nearby_cities = []
-            for city in list(cities_in_region)[:5]:  # Limit to 5 nearby cities
+            for city in list(cities_in_region):  # No limit - include all cities in region
                 # Try to find the WordPress post ID
                 search_slug = f"{city.lower().replace(' ', '-')}-red-tide"
                 existing_post = self.find_existing_post(search_slug, 'city')
@@ -1285,10 +1495,99 @@ class WordPressSyncer:
                 
                 nearby_cities.append({
                     'city': existing_post['id'] if existing_post else None,
-                    'distance': 15.0,  # Fallback distance
+                    'distance': 15.0,  # Standard distance for region-based cities
                     'current_status': city_status,
                     'status_color': self.get_status_color(city_status),
-                    'description': f"{city} - {city_status} conditions"
+                    'description': f"{city} - {city_status} conditions (same region)"
+                })
+            
+            return nearby_cities
+            
+        except Exception as e:
+            print(f"   Warning: Could not get nearby cities for {city_name}: {e}")
+            return []
+    
+    def _get_nearby_cities_optimized(self, city_name, region_name):
+        """Optimized version of _get_nearby_cities using pre-built lookups"""
+        try:
+            # Use pre-built lookup to get all cities in the region
+            if region_name not in self.region_to_cities:
+                return []
+            
+            city_names = self.region_to_cities[region_name]
+            nearby_cities = []
+            
+            # Get beach status data for the region to get city statuses
+            beach_status_records = self._get_cached_sheet_data('beach_status')
+            city_status_lookup = {}
+            for record in beach_status_records:
+                if (record.get('location_type', '').lower() == 'city' and 
+                    record.get('region', '') == region_name):
+                    city_status_lookup[record.get('location_name', '')] = record
+            
+            # Process each city in the region (excluding the current city)
+            for other_city_name in city_names:
+                if other_city_name == city_name:
+                    continue
+                
+                # Get post ID from pre-fetched lookup
+                post_id = self.location_to_post_id['city'].get(other_city_name)
+                
+                # Get status from lookup
+                city_status = city_status_lookup.get(other_city_name, {})
+                current_status = city_status.get('current_status', 'no_data')
+                
+                nearby_cities.append({
+                    'city': post_id,
+                    'distance': 15.0,  # Standard distance for region-based cities
+                    'current_status': current_status,
+                    'status_color': self.get_status_color(current_status),
+                    'description': f"{other_city_name} - {current_status} conditions (same region)"
+                })
+            
+            return nearby_cities
+            
+        except Exception as e:
+            print(f"   Warning: Could not get nearby cities optimized for {city_name}: {e}")
+            return []
+    
+    def _get_nearby_cities_fallback(self, city_name, region_name):
+        """Fallback method for nearby cities when coordinates are unavailable - now same as primary method"""
+        # Note: This method now uses the same region-based logic as the primary method
+        # Keeping it for backward compatibility but it's functionally identical
+        try:
+            beach_status_records = self._get_cached_sheet_data('beach_status')
+            
+            # Get unique cities in the same region
+            cities_in_region = set()
+            for record in beach_status_records:
+                record_city = record.get('city', '')
+                record_region = record.get('region', '')
+                record_type = record.get('location_type', '').lower()
+                
+                if record_type == 'city' and record_region == region_name and record_city != city_name:
+                    cities_in_region.add(record_city)
+            
+            nearby_cities = []
+            for city in list(cities_in_region):  # No limit - include all cities in region
+                # Try to find the WordPress post ID
+                search_slug = f"{city.lower().replace(' ', '-')}-red-tide"
+                existing_post = self.find_existing_post(search_slug, 'city')
+                
+                # Get city status from records
+                city_status = 'no_data'
+                for record in beach_status_records:
+                    if (record.get('location_name', '') == city and 
+                        record.get('location_type', '').lower() == 'city'):
+                        city_status = record.get('current_status', 'no_data')
+                        break
+                
+                nearby_cities.append({
+                    'city': existing_post['id'] if existing_post else None,
+                    'distance': 15.0,  # Standard distance for region-based cities
+                    'current_status': city_status,
+                    'status_color': self.get_status_color(city_status),
+                    'description': f"{city} - {city_status} conditions (same region)"
                 })
             
             return nearby_cities
@@ -1298,7 +1597,7 @@ class WordPressSyncer:
             return []
     
     def _get_nearby_regions(self, region_name):
-        """Get nearby regions for a specific region"""
+        """Get nearby regions for a specific region - now optimized"""
         if self.wordpress_test_only:
             return [
                 {
@@ -1309,7 +1608,12 @@ class WordPressSyncer:
                     'description': 'Adjacent region with safe conditions'
                 }
             ]
-            
+        
+        # Use optimized lookup if available
+        if hasattr(self, 'region_to_beaches') and self.region_to_beaches:
+            return self._get_nearby_regions_optimized(region_name)
+        
+        # Fallback to original method
         try:
             beach_status_records = self._get_cached_sheet_data('beach_status')
             
@@ -1346,6 +1650,50 @@ class WordPressSyncer:
             
         except Exception as e:
             print(f"   Warning: Could not get nearby regions for {region_name}: {e}")
+            return []
+    
+    def _get_nearby_regions_optimized(self, region_name):
+        """Optimized version of _get_nearby_regions using pre-built lookups"""
+        try:
+            # Use pre-built lookup to get all regions
+            all_regions = list(self.region_to_beaches.keys())
+            nearby_regions = []
+            
+            # Get beach status data to get region statuses
+            beach_status_records = self._get_cached_sheet_data('beach_status')
+            region_status_lookup = {}
+            for record in beach_status_records:
+                if record.get('location_type', '').lower() == 'region':
+                    region_status_lookup[record.get('location_name', '')] = record
+            
+            # Process each region (excluding the current region, limit to 3)
+            for other_region_name in all_regions:
+                if other_region_name == region_name:
+                    continue
+                
+                # Get post ID from pre-fetched lookup
+                post_id = self.location_to_post_id['region'].get(other_region_name)
+                
+                # Get status from lookup
+                region_status = region_status_lookup.get(other_region_name, {})
+                current_status = region_status.get('current_status', 'no_data')
+                
+                nearby_regions.append({
+                    'region': post_id,
+                    'distance': 50.0,  # Mock distance
+                    'current_status': current_status,
+                    'status_color': self.get_status_color(current_status),
+                    'description': f"{other_region_name} - {current_status} conditions"
+                })
+                
+                # Limit to 3 nearby regions
+                if len(nearby_regions) >= 3:
+                    break
+            
+            return nearby_regions
+            
+        except Exception as e:
+            print(f"   Warning: Could not get nearby regions optimized for {region_name}: {e}")
             return []
     
     def sync_post_type(self, data_list, post_type):
