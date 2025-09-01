@@ -306,6 +306,19 @@ class WordPressSyncer:
             print(f"   - {len(data_by_type['city'])} cities")
             print(f"   - {len(data_by_type['region'])} regions")
             
+            # Debug: Show sample city data
+            if data_by_type['city']:
+                sample_city = data_by_type['city'][0]
+                print(f"   📊 Sample city data for {sample_city.get('location_name', 'Unknown')}:")
+                print(f"      - peak_count: {sample_city.get('peak_count', 'N/A')}")
+                print(f"      - avg_count: {sample_city.get('avg_count', 'N/A')}")
+                print(f"      - confidence_score: {sample_city.get('confidence_score', 'N/A')}")
+                print(f"      - sample_date: {sample_city.get('sample_date', 'N/A')}")
+                print(f"      - beach_count: {sample_city.get('beach_count', 'N/A')}")
+                print(f"      - beaches_safe: {sample_city.get('beaches_safe', 'N/A')}")
+                print(f"      - beaches_caution: {sample_city.get('beaches_caution', 'N/A')}")
+                print(f"      - beaches_avoid: {sample_city.get('beaches_avoid', 'N/A')}")
+            
             # Debug: Show sample region data
             if data_by_type['region']:
                 sample_region = data_by_type['region'][0]
@@ -599,12 +612,29 @@ class WordPressSyncer:
             # Get child beach post IDs
             child_beach_ids = self._find_child_post_ids(location_name, 'beach')
             
+            # Handle required child_beaches field - if empty, provide a fallback
+            if not child_beach_ids:
+                print(f"      ⚠️  No child beaches found for {location_name}, providing fallback")
+                # Try to find at least one beach in this city from the locations sheet
+                locations_records = self._get_cached_sheet_data('locations')
+                fallback_beach_id = None
+                for location_record in locations_records:
+                    if location_record.get('city', '') == location_name:
+                        beach_name = location_record.get('beach', '')
+                        if beach_name:
+                            search_slug = f"{beach_name.lower().replace(' ', '-')}-red-tide"
+                            existing_post = self.find_existing_post(search_slug, 'beach')
+                            if existing_post:
+                                fallback_beach_id = existing_post['id']
+                                print(f"      🔧 Using fallback beach: {beach_name} (ID: {fallback_beach_id})")
+                                break
+                
+                if fallback_beach_id:
+                    child_beach_ids = [fallback_beach_id]
+                else:
+                    print(f"      ❌ No fallback beach found, this may cause validation errors")
+            
             acf_data.update({
-                'peak_count': int(data.get('peak_count', 0)),
-                'avg_count': int(data.get('avg_count', 0)),
-                'confidence_score': int(data.get('confidence_score', 0)),
-                'sample_date': data.get('sample_date', '') or None,
-                'beach_count': int(data.get('beach_count', 0)),
                 'beaches_safe': int(data.get('beaches_safe', 0)),
                 'beaches_caution': int(data.get('beaches_caution', 0)),
                 'beaches_avoid': int(data.get('beaches_avoid', 0)),
@@ -619,6 +649,19 @@ class WordPressSyncer:
                 'nearby_cities': self._get_nearby_cities(location_name, data.get('region', '')),
                 'nearby_beaches': self._get_nearby_beaches_for_city(location_name, data.get('region', ''))
             })
+            
+            # Debug: Print city ACF data
+            print(f"   🔍 City ACF data for {location_name}:")
+            print(f"      - peak_cell_count: {acf_data.get('peak_cell_count', 'N/A')}")
+            print(f"      - average_cell_count: {acf_data.get('average_cell_count', 'N/A')}")
+            print(f"      - average_confidence: {acf_data.get('average_confidence', 'N/A')}")
+            print(f"      - latest_sample_data: {acf_data.get('latest_sample_data', 'N/A')}")
+            print(f"      - total_beaches: {acf_data.get('total_beaches', 'N/A')}")
+            print(f"      - beaches_safe: {acf_data.get('beaches_safe', 'N/A')}")
+            print(f"      - beaches_caution: {acf_data.get('beaches_caution', 'N/A')}")
+            print(f"      - beaches_avoid: {acf_data.get('beaches_avoid', 'N/A')}")
+            print(f"      - child_beaches (IDs): {child_beach_ids}")
+            print(f"      - parent_region (ID): {parent_region_id}")
             
         elif post_type == 'region':
             # Get child post IDs
@@ -798,26 +841,61 @@ class WordPressSyncer:
     def _find_child_post_ids(self, parent_name, child_type):
         """Find post IDs for child beaches or cities in a parent region/city"""
         try:
-            # Get the beach_status data to find related posts
-            beach_status_records = self._get_cached_sheet_data('beach_status')
-            
-            child_ids = []
-            for record in beach_status_records:
-                record_parent = record.get('region' if child_type == 'beach' else 'city', '')
-                record_type = record.get('location_type', '').lower()
+            if child_type == 'beach':
+                # For beaches, search through WordPress beach posts to find those belonging to the city
+                search_url = f"{self.wp_site_url}/wp-json/wp/v2/beaches"
+                params = {'per_page': 100}  # Get more beaches to search through
                 
-                # Match parent and child type
-                if record_parent == parent_name and record_type == child_type:
-                    # Try to find the WordPress post ID for this location
-                    location_name = record.get('location_name', '')
-                    if location_name:
-                        # Search for existing post
-                        search_slug = f"{location_name.lower().replace(' ', '-')}-red-tide"
-                        existing_post = self.find_existing_post(search_slug, child_type)
-                        if existing_post:
-                            child_ids.append(existing_post['id'])
-            
-            return child_ids
+                response = requests.get(search_url, params=params, auth=self.auth, timeout=10)
+                
+                if response.status_code == 200:
+                    beaches = response.json()
+                    child_ids = []
+                    
+                    print(f"      🔍 Searching through {len(beaches)} WordPress beach posts for city '{parent_name}'...")
+                    
+                    for beach in beaches:
+                        beach_title = beach.get('title', {}).get('rendered', '')
+                        beach_slug = beach.get('slug', '')
+                        
+                        # Check if this beach belongs to the city
+                        # Look for city name in title or slug
+                        if (parent_name.lower() in beach_title.lower() or 
+                            parent_name.lower() in beach_slug.lower() or
+                            parent_name.lower().replace(' ', '') in beach_slug.lower()):
+                            child_ids.append(beach['id'])
+                            print(f"         ✅ Found beach: {beach_title} (ID: {beach['id']})")
+                    
+                    print(f"      📊 Total child beaches found for {parent_name}: {len(child_ids)}")
+                    return child_ids
+                else:
+                    print(f"      ❌ Failed to get beaches: {response.status_code}")
+                    return []
+            else:
+                # For cities, use the original logic with beach_status data
+                beach_status_records = self._get_cached_sheet_data('beach_status')
+                
+                child_ids = []
+                for record in beach_status_records:
+                    record_parent = record.get('region', '')
+                    record_type = record.get('location_type', '').lower()
+                    
+                    # Match parent and child type
+                    if record_parent == parent_name and record_type == child_type:
+                        # Try to find the WordPress post ID for this location
+                        location_name = record.get('location_name', '')
+                        if location_name:
+                            # Search for existing post
+                            search_slug = f"{location_name.lower().replace(' ', '-')}-red-tide"
+                            existing_post = self.find_existing_post(search_slug, child_type)
+                            if existing_post:
+                                child_ids.append(existing_post['id'])
+                                print(f"      ✅ Found child {child_type}: {location_name} (ID: {existing_post['id']})")
+                            else:
+                                print(f"      ⚠️  Child {child_type} {location_name} not found in WordPress")
+                
+                print(f"      📊 Total child {child_type}s found for {parent_name}: {len(child_ids)}")
+                return child_ids
             
         except Exception as e:
             print(f"   Warning: Could not find child {child_type} IDs for {parent_name}: {e}")

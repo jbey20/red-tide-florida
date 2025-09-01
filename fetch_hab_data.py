@@ -5,7 +5,7 @@ Fetches data from FWC HAB API, processes it, and updates Google Sheets
 """
 
 import requests
-import json
+import json 
 import os
 import re
 import time
@@ -407,6 +407,8 @@ class HABDataFetcher:
             city_name = beach['city']
             if not city_name:
                 continue
+            
+
                 
             if city_name not in city_data:
                 city_data[city_name] = {
