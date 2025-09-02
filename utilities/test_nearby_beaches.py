@@ -78,17 +78,17 @@ def test_nearby_beaches_logic():
     mock_location_records = [
         {
             'beach': 'Siesta Key Beach',
-            'lattitude': '27.2659',
+            'latitude': '27.2659',
             'longitude': '-82.5525'
         },
         {
             'beach': 'Lido Beach',
-            'lattitude': '27.3364',
+            'latitude': '27.3364',
             'longitude': '-82.5307'
         },
         {
             'beach': 'Venice Beach',
-            'lattitude': '27.0998',
+            'latitude': '27.0998',
             'longitude': '-82.4543'
         }
     ]

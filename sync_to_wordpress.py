@@ -133,6 +133,23 @@ class WordPressSyncer:
         
         return None, None
     
+    def _extract_coordinates_from_record(self, location_record):
+        """Extract valid coordinates from a location record"""
+        lat = location_record.get('latitude')
+        lon = location_record.get('longitude')
+        
+        # Only return coordinates if both lat and lon are present and valid
+        if lat is not None and lon is not None and str(lat).strip() and str(lon).strip():
+            try:
+                # Convert to float to validate they are numbers
+                lat_float = float(lat)
+                lon_float = float(lon)
+                return lat_float, lon_float
+            except (ValueError, TypeError):
+                return None, None
+        
+        return None, None
+    
     def _get_cached_sheet_data(self, worksheet_name):
         """Get sheet data with caching to reduce API calls"""
         if worksheet_name in self.sheet_cache:
@@ -234,21 +251,20 @@ class WordPressSyncer:
                 # Build region -> beaches lookup
                 if location_type == 'beach':
                     if region not in self.region_to_beaches:
-                        self.region_to_beaches[region] = []
-                    self.region_to_beaches[region].append(location_name)
+                        self.region_to_beaches[region] = set()  # Use set to avoid duplicates
+                    self.region_to_beaches[region].add(location_name)
                     
                     # Also build city -> beaches lookup
                     if city:
                         if city not in self.city_to_beaches:
-                            self.city_to_beaches[city] = []
-                        self.city_to_beaches[city].append(location_name)
+                            self.city_to_beaches[city] = set()  # Use set to avoid duplicates
+                        self.city_to_beaches[city].add(location_name)
                 
                 # Build region -> cities lookup
                 elif location_type == 'city':
                     if region not in self.region_to_cities:
-                        self.region_to_cities[region] = []
-                    if location_name not in self.region_to_cities[region]:
-                        self.region_to_cities[region].append(location_name)
+                        self.region_to_cities[region] = set()  # Use set to avoid duplicates
+                    self.region_to_cities[region].add(location_name)
             
             # Pre-fetch WordPress post IDs for all locations to avoid repeated API calls
             self._prefetch_wordpress_post_ids()
@@ -352,9 +368,16 @@ class WordPressSyncer:
         """Optimized version of _find_child_post_ids using pre-built lookups"""
         try:
             if child_type == 'beach':
-                # Use pre-built lookup
+                # Use pre-built lookup - check both region and city mappings
+                beach_names = []
                 if parent_name in self.region_to_beaches:
-                    beach_names = self.region_to_beaches[parent_name]
+                    beach_names.extend(self.region_to_beaches[parent_name])
+                if parent_name in self.city_to_beaches:
+                    beach_names.extend(self.city_to_beaches[parent_name])
+                
+                if beach_names:
+                    # Remove duplicates (in case a beach appears in both mappings)
+                    beach_names = list(set(beach_names))
                     child_ids = []
                     
                     for beach_name in beach_names:
@@ -368,13 +391,13 @@ class WordPressSyncer:
                     print(f"      📊 Total child beaches found for {parent_name}: {len(child_ids)}")
                     return child_ids
                 else:
-                    print(f"      ⚠️  No beaches found for region {parent_name}")
+                    print(f"      ⚠️  No beaches found for {parent_name}")
                     return []
                     
             elif child_type == 'city':
                 # Use pre-built lookup
                 if parent_name in self.region_to_cities:
-                    city_names = self.region_to_cities[parent_name]
+                    city_names = list(self.region_to_cities[parent_name])  # Convert set to list
                     child_ids = []
                     
                     for city_name in city_names:
@@ -795,6 +818,19 @@ class WordPressSyncer:
                 'nearby_regions': self._get_nearby_regions(data.get('region', ''))
             })
             
+            # Debug: Print beach ACF data including coordinates
+            print(f"   🔍 Beach ACF data for {location_name}:")
+            coordinates = acf_data.get('coordinates', 'N/A')
+            if coordinates and isinstance(coordinates, dict):
+                print(f"      - coordinates: Google Maps format - lat: {coordinates.get('lat', 'N/A')}, lng: {coordinates.get('lng', 'N/A')}, zoom: {coordinates.get('zoom', 'N/A')}")
+            else:
+                print(f"      - coordinates: {coordinates}")
+            print(f"      - full_address: {acf_data.get('full_address', 'N/A')}")
+            print(f"      - zip_code: {acf_data.get('zip_code', 'N/A')}")
+            print(f"      - peak_count: {acf_data.get('peak_count', 'N/A')}")
+            print(f"      - confidence_score: {acf_data.get('confidence_score', 'N/A')}")
+            print(f"      - sample_date: {acf_data.get('sample_date', 'N/A')}")
+            
         elif post_type == 'city':
             # Get HAB sampling sites for this city
             hab_sites = self._get_city_hab_sampling_sites(location_name)
@@ -905,9 +941,14 @@ class WordPressSyncer:
     def _get_beach_location_data(self, beach_name):
         """Get additional beach data from locations sheet"""
         if self.wordpress_test_only:
-            # Return mock location data for testing
+            # Return mock location data for testing in Google Maps format
             return {
-                'coordinates': '27.265862, -82.552521',
+                'coordinates': {
+                    'lat': 27.265862,
+                    'lng': -82.552521,
+                    'address': '123 Test Beach Road, Test City, FL 12345',
+                    'zoom': 15
+                },
                 'address': '123 Test Beach Road, Test City, FL 12345',
                 'zip': '12345'
             }
@@ -917,8 +958,47 @@ class WordPressSyncer:
             
             for record in records:
                 if record.get('beach', '') == beach_name:
+                    # Get latitude and longitude values
+                    lat = record.get('latitude')
+                    lon = record.get('longitude')
+                    
+                    # Only create coordinates if both lat and lon are present and valid
+                    coordinates = None
+                    if lat is not None and lon is not None and str(lat).strip() and str(lon).strip():
+                        try:
+                            # Convert to float to validate they are numbers
+                            lat_float = float(lat)
+                            lon_float = float(lon)
+                            coordinates = f"{lat_float}, {lon_float}"
+                        except (ValueError, TypeError):
+                            print(f"      ⚠️  Invalid coordinates for {beach_name}: lat={lat}, lon={lon}")
+                            coordinates = None
+                    
+                    # Debug: Log coordinate extraction
+                    if coordinates:
+                        print(f"      ✅ Extracted coordinates for {beach_name}: {coordinates}")
+                    else:
+                        print(f"      ⚠️  No valid coordinates found for {beach_name}")
+                        print(f"         Raw lat: {lat}, Raw lon: {lon}")
+                    
+                    # For Google Maps field, return coordinates in the expected format
+                    # Google Maps fields typically expect: lat, lng, address, zoom
+                    google_maps_data = None
+                    if coordinates:
+                        try:
+                            lat_float, lon_float = coordinates.split(', ')
+                            google_maps_data = {
+                                'lat': float(lat_float),
+                                'lng': float(lon_float),
+                                'address': record.get('address', '') or '',
+                                'zoom': 15  # Default zoom level for beach locations
+                            }
+                        except (ValueError, AttributeError):
+                            print(f"      ⚠️  Could not parse coordinates for Google Maps: {coordinates}")
+                            google_maps_data = None
+                    
                     return {
-                        'coordinates': f"{record.get('lattitude', '')}, {record.get('longitude', '')}".strip(', ') or None,
+                        'coordinates': google_maps_data,  # Now returns Google Maps format
                         'address': record.get('address', '') or None,
                         'zip': str(record.get('zip', '')) if record.get('zip') else None
                     }
@@ -1170,8 +1250,7 @@ class WordPressSyncer:
             target_lat, target_lon = None, None
             for location_record in locations_records:
                 if location_record.get('beach', '') == beach_name:
-                    coord_str = f"{location_record.get('lattitude', '')}, {location_record.get('longitude', '')}".strip(', ')
-                    target_lat, target_lon = self._parse_coordinates(coord_str)
+                    target_lat, target_lon = self._extract_coordinates_from_record(location_record)
                     break
             
             if target_lat is None or target_lon is None:
@@ -1194,8 +1273,7 @@ class WordPressSyncer:
                     beach_lat, beach_lon = None, None
                     for location_record in locations_records:
                         if location_record.get('beach', '') == record_name:
-                            coord_str = f"{location_record.get('lattitude', '')}, {location_record.get('longitude', '')}".strip(', ')
-                            beach_lat, beach_lon = self._parse_coordinates(coord_str)
+                            beach_lat, beach_lon = self._extract_coordinates_from_record(location_record)
                             break
                     
                     if beach_lat is not None and beach_lon is not None:
@@ -1231,7 +1309,7 @@ class WordPressSyncer:
             if region_name not in self.region_to_beaches:
                 return []
             
-            beach_names = self.region_to_beaches[region_name]
+            beach_names = list(self.region_to_beaches[region_name])  # Convert set to list
             nearby_beaches = []
             
             # Get coordinates for the target beach
@@ -1239,8 +1317,7 @@ class WordPressSyncer:
             target_lat, target_lon = None, None
             for location_record in locations_records:
                 if location_record.get('beach', '') == beach_name:
-                    coord_str = f"{location_record.get('lattitude', '')}, {location_record.get('longitude', '')}".strip(', ')
-                    target_lat, target_lon = self._parse_coordinates(coord_str)
+                    target_lat, target_lon = self._extract_coordinates_from_record(location_record)
                     break
             
             if target_lat is None or target_lon is None:
@@ -1265,8 +1342,7 @@ class WordPressSyncer:
                 beach_lat, beach_lon = None, None
                 for location_record in locations_records:
                     if location_record.get('beach', '') == other_beach_name:
-                        coord_str = f"{location_record.get('lattitude', '')}, {location_record.get('longitude', '')}".strip(', ')
-                        beach_lat, beach_lon = self._parse_coordinates(coord_str)
+                        beach_lat, beach_lon = self._extract_coordinates_from_record(location_record)
                         break
                 
                 if beach_lat is not None and beach_lon is not None:
@@ -1357,8 +1433,7 @@ class WordPressSyncer:
             target_lat, target_lon = None, None
             for location_record in locations_records:
                 if location_record.get('city', '') == city_name:
-                    coord_str = f"{location_record.get('lattitude', '')}, {location_record.get('longitude', '')}".strip(', ')
-                    target_lat, target_lon = self._parse_coordinates(coord_str)
+                    target_lat, target_lon = self._extract_coordinates_from_record(location_record)
                     if target_lat is not None and target_lon is not None:
                         break
             
@@ -1381,8 +1456,7 @@ class WordPressSyncer:
                     beach_lat, beach_lon = None, None
                     for location_record in locations_records:
                         if location_record.get('beach', '') == record_name:
-                            coord_str = f"{location_record.get('lattitude', '')}, {location_record.get('longitude', '')}".strip(', ')
-                            beach_lat, beach_lon = self._parse_coordinates(coord_str)
+                            beach_lat, beach_lon = self._extract_coordinates_from_record(location_record)
                             break
                     
                     if beach_lat is not None and beach_lon is not None:
@@ -1514,7 +1588,7 @@ class WordPressSyncer:
             if region_name not in self.region_to_cities:
                 return []
             
-            city_names = self.region_to_cities[region_name]
+            city_names = list(self.region_to_cities[region_name])  # Convert set to list
             nearby_cities = []
             
             # Get beach status data for the region to get city statuses
@@ -1656,7 +1730,7 @@ class WordPressSyncer:
         """Optimized version of _get_nearby_regions using pre-built lookups"""
         try:
             # Use pre-built lookup to get all regions
-            all_regions = list(self.region_to_beaches.keys())
+            all_regions = list(self.region_to_beaches.keys())  # Convert set to list
             nearby_regions = []
             
             # Get beach status data to get region statuses
